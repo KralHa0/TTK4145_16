@@ -6,7 +6,8 @@ import (
 
 func main() {
 	//runTask1() // Uncomment to run Task 1
-	//runTask2() // Uncomment to run Task 2
+	//runTask3() // Uncomment to run Task 3
+	
 
 	
 }

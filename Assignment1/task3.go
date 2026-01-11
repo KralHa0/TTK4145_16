@@ -37,7 +37,7 @@ func decrementWorker(decCh chan<- struct{}, done chan<- struct{}) {
 	done <- struct{}{}
 }
 
-func runTask2() { //Task 2 runner for ease of testing
+func runTask3() { //Task 3 runner for ease of testing
 	incCh := make(chan struct{})
 	decCh := make(chan struct{})
 	getCh := make(chan chan int)

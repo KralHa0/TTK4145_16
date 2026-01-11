@@ -9,7 +9,7 @@ func incrementing() {
 }
 
 func decrementing() {
-	for j := 0; j < 100000; j++ {
+	for j := 0; j < 100001; j++ {
 		i--
 	}
 }

@@ -1,17 +1,12 @@
 package main
 
 import (
-	. "fmt"
-	"runtime"
-	"time"
+	//. "fmt"
 )
 
 func main() {
-	runtime.GOMAXPROCS(2)
+	//runTask1() // Uncomment to run Task 1
+	//runTask2() // Uncomment to run Task 2
 
-	go incrementing()
-	go decrementing()
-
-	time.Sleep(500 * time.Millisecond)
-	Println("The magic number is:", i)
+	
 }

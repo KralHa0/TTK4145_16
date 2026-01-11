@@ -1,5 +1,17 @@
 package main
 
+import (
+	. "fmt"
+	"runtime"
+	"time"
+)
+
 func main() {
-	// This is a placeholder for the main function.
+	runtime.GOMAXPROCS(2)
+
+	go incrementing()
+	go decrementing()
+
+	time.Sleep(500 * time.Millisecond)
+	Println("The magic number is:", i)
 }

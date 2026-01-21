@@ -8,7 +8,7 @@ import (
 
 func discover_server() (string, error) {
 	//Bind to UDP port 20001 to listen for messages from server
-	localAddr, err := net.ResolveUDPAddr("udp", ":20001")
+	localAddr, err := net.ResolveUDPAddr("udp", ":30000")
 	if err != nil {
 		panic(err)
 	}
@@ -21,7 +21,7 @@ func discover_server() (string, error) {
 	defer conn.Close()
 
 	//Server address
-	serverAddr, err := net.ResolveUDPAddr("udp", "localhost:20000")
+	serverAddr, err := net.ResolveUDPAddr("udp", "localhost:20018")
 	if err != nil {
 		panic(err)
 	}

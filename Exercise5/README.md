@@ -1,0 +1,1 @@
+Activate D compiler: source ~/dlang/dmd-2.*/activate

@@ -39,7 +39,7 @@ class Resource(T) {
         cond    = new Condition(mtx);
     }
     
-    T allocate(int id, int priority){
+    T allocate(int id, int priority){ 
         mtx.lock();
         queue.insert(id, priority);
         

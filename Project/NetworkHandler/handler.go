@@ -1,5 +1,3 @@
-/**/
-
 package networkhandler
 
 import (
@@ -12,6 +10,11 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
+const (
+	bcastPort = 30000 // Worldview port
+	peersPort = 30001 // Peer discovery port
+)
+
 var (
 	stateTx        = make(chan def.Worldview)
 	stateRx        = make(chan def.Worldview)
@@ -19,22 +22,8 @@ var (
 	transmitEnable = make(chan bool)
 )
 
-const (
-	bcastPort = 30000 //Worldview port
-	peersPort = 30001 //Peer discovery port
-)
-
-func NetworkInit() (
-	stateTx chan def.Worldview,
-	stateRx chan def.Worldview,
-	peerUpdateRx chan peers.PeerUpdate,
-	transmitEnable chan bool,
-) {
+func NetworkInit() {
 	id := CheckIP()
-	stateTx = make(chan def.Worldview)
-	stateRx = make(chan def.Worldview)
-	peerUpdateRx = make(chan peers.PeerUpdate)
-	transmitEnable = make(chan bool)
 
 	go bcast.Transmitter(bcastPort, stateTx)
 	go bcast.Receiver(bcastPort, stateRx)
@@ -42,8 +31,6 @@ func NetworkInit() (
 	go peers.Receiver(peersPort, peerUpdateRx)
 
 	go func() { transmitEnable <- true }()
-
-	return
 }
 
 func CheckIP() string {
@@ -77,7 +64,7 @@ func EnableTransmit() {
 
 func NetworkRun(
 	localWvCh <-chan def.Worldview,
-	peerWcCh chan<- def.Worldview,
+	peerWvCh chan<- def.Worldview,
 	peerUpdateCh chan<- peers.PeerUpdate,
 ) {
 	for {
@@ -85,7 +72,7 @@ func NetworkRun(
 		case wv := <-localWvCh:
 			SendWorldview(wv)
 		case wv := <-stateRx:
-			peerWcCh <- wv
+			peerWvCh <- wv
 		case update := <-peerUpdateRx:
 			peerUpdateCh <- update
 		}

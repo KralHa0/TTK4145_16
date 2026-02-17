@@ -7,7 +7,7 @@ import (
 
 const (
 	NumFloors = 4
-	msgFrq    = 15 * time.Millisecond
+	MsgFrq    = 15 * time.Millisecond
 )
 
 type Behavior int

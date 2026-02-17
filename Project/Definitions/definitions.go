@@ -1,3 +1,5 @@
+package main
+
 type Behavior struct {
 	Idle      int
 	Moving    int

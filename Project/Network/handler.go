@@ -1,23 +1,9 @@
 package main
 
 import(
-	"network-go/network/bcast"
-	"fmt"
-	"log"
+	"Network-go/network/bcast"
 )
 
-type NetWorkHandler struct {
-	 myId int
-	 sendChan chan NetworkMessage
-	 receiveChan chan NetworkMessage
-}
+func networkInit(){
 
-func (nh *NetWorkHandler) Send(msg NetworkMessage) {
-	nh.sendChan <- msg
 }
-
-func (nh *NetWorkHandler) Receive() NetworkMessage {
-	return <- nh.receiveChan
-}
-
-func (nh *NetWorkHandler) GetId() int

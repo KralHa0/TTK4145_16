@@ -1,38 +1,41 @@
-package main
+package definitions
 
 import "Driver-go/elevio"
 
 const NumFloors = 4
 
 type State int
+
 const (
-    Idle     State = iota
-    Moving
-    DoorOpen
+	Idle State = iota
+	Moving
+	DoorOpen
 )
 
-type CabRequests struct {
-    Requests [NumFloors]uint8
-}
+type OrderState uint8
 
-type HallRequests struct {
-    Requests [NumFloors][2]uint8
-}
+const (
+	NoCall       OrderState = 0
+	Available    OrderState = 1
+	Taken        OrderState = 2
+	Complete     OrderState = 3
+	Acknowledged OrderState = 4
+)
 
 type ElevState struct {
-    Floor     int
-    Direction elevio.MotorDirection
-    State     State
+	Floor         int
+	Direction     elevio.MotorDirection
+	State         State
 	Malfunctioned bool
 }
 
 type Node struct {
-    ID          string
-    CabRequests CabRequests
-    ElevState   ElevState
+	ID          string
+	CabRequests [NumFloors]OrderState
+	ElevState   ElevState
 }
 
 type Worldview struct {
-    Nodes        []Node
-    HallRequests HallRequests
+	Nodes        []Node
+	HallRequests [NumFloors][2]OrderState
 }

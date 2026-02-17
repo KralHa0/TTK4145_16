@@ -1,136 +1,202 @@
-package main
+package Orderhandler
+
 import (
-	"os/exec"
-	"fmt"
+	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
+	"Driver-go/elevio"
 	"encoding/json"
+	"fmt"
+	"os/exec"
 	"runtime"
 )
+/*TODO: 
+make scheduler start thingamabob, and make it run the cost function every time it receives a new/unique worldview from the orderManager.
+*/
+
 
 // Struct members must be public in order to be accessible by json.Marshal/.Unmarshal
 // This means they must start with a capital letter, so we need to use field renaming struct tags to make them camelCase
 
 type HRAElevState struct {
-    Behavior    string      `json:"behaviour"`
-    Floor       int         `json:"floor"` 
-    Direction   string      `json:"direction"`
-    CabRequests []bool      `json:"cabRequests"`
+	Behavior    string `json:"behaviour"`
+	Floor       int    `json:"floor"`
+	Direction   string `json:"direction"`
+	CabRequests []bool `json:"cabRequests"`
 }
 
 type HRAInput struct {
-    HallRequests    [][2]bool                   `json:"hallRequests"`
-    States          map[string]HRAElevState     `json:"states"`
+	HallRequests [][2]bool               `json:"hallRequests"`
+	States       map[string]HRAElevState `json:"states"`
+}
+
+func directionToString(d elevio.MotorDirection) string {
+	switch d {
+	case elevio.MD_Up:
+		return "up"
+	case elevio.MD_Down:
+		return "down"
+	default:
+		return "stop"
+	}
+}
+
+func stateToString(s def.Behavior) string {
+	switch s {
+	case def.Moving:
+		return "moving"
+	case def.DoorOpen:
+		return "doorOpen"
+	default:
+		return "idle"
+	}
 }
 
 
+func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool{
+    boolRequests := make([][2]bool, def.NumFloors)
+    for floor := 0; floor < def.NumFloors; floor++ {
+        for dir := 0; dir <= 1; dir++ {
+            if (hallRequests[floor][dir] == def.NoCall || hallRequests[floor][dir] == def.Complete) {
+                boolRequests[floor][dir] = false
+            } else {
+                boolRequests[floor][dir] = true
+            }
+        }
+    }
+    return boolRequests
+}/*TODO: make acc test */
 
-func main(){
+func makeHRAStateMap(nodes []def.Node) map[string]HRAElevState {
+    States := make(map[string]HRAElevState)
+    for _, node := range nodes {
+        cabRequestBools := make([]bool, def.NumFloors)
+        for floor := 0; floor < def.NumFloors; floor++ {
+            if (node.CabRequests[floor] == def.NoCall || node.CabRequests[floor] == def.Complete) {
+                cabRequestBools[floor] = false
+            } else {
+                cabRequestBools[floor] = true
+            }
+        }
 
-    hraExecutable := ""
-    switch runtime.GOOS {
-        case "linux":   hraExecutable  = "hall_request_assigner"
-        case "windows": hraExecutable  = "hall_request_assigner.exe"
-        default:        panic("OS not supported")
+        States[node.ID] = HRAElevState{
+            Behavior:    stateToString(node.ElevState.Behavior),
+            Floor:       node.ElevState.Floor,
+            Direction:   directionToString(node.ElevState.Direction),
+            CabRequests: cabRequestBools,
+        }
     }
 
-    input := HRAInput{
-        HallRequests: [][2]bool{{false, false}, {true, false}, {false, false}, {false, true}},
-        States: map[string]HRAElevState{
-            "one": HRAElevState{
-                Behavior:       "moving",
-                Floor:          2,
-                Direction:      "up",
-                CabRequests:    []bool{false, false, false, true},
-            },
-            "two": HRAElevState{
-                Behavior:       "idle",
-                Floor:          0,
-                Direction:      "stop",
-                CabRequests:    []bool{false, false, false, false},
-            },
-        },
+    return States
+}/*TODO: make acc test */
+
+func worldviewToHRAInput(w def.Worldview) HRAInput {
+    HRAInput := HRAInput{
+        HallRequests: hallrequestToBool(w.HallRequests),
+        States:       makeHRAStateMap(w.Nodes),
     }
 
+    return HRAInput
+}/*TODO: make acc test */
+
+/*TODO: run costexe functionality*/
+
+
+func marshalInput(input HRAInput) ([]byte, error) {
     jsonBytes, err := json.Marshal(input)
     if err != nil {
-        fmt.Println("json.Marshal error: ", err)
-        return
+        return nil, fmt.Errorf("json.Marshal error: %w", err)
     }
-    //_, filename, _, _ := runtime.Caller(0)
-	//dir := filepath.Dir(filename)
+    return jsonBytes, nil
+}
+
+    
+func runHRAExecutable(jsonBytes []byte) ([]byte, error) {
+    hraExecutable := ""
+	switch runtime.GOOS {
+	case "linux":
+		hraExecutable = "hall_request_assigner"
+	case "windows":
+		hraExecutable = "hall_request_assigner.exe"
+	default:
+		panic("OS not supported")
+	}
+
+
     ret, err := exec.Command("../Orderhandler/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
     if err != nil {
-        fmt.Println("exec.Command error: ", err)
-        fmt.Println(string(ret))
-        return
+        return nil, fmt.Errorf("exec.Command error: %w, output: %s", err, string(ret))
     }
-    
+    return ret, nil
+}
+
+func unmarshalOutput(ret []byte) (map[string][][2]bool, error) {
     output := new(map[string][][2]bool)
-    err = json.Unmarshal(ret, &output)
+    err := json.Unmarshal(ret, output)
     if err != nil {
-        fmt.Println("json.Unmarshal error: ", err)
-        return
+        return nil, fmt.Errorf("json.Unmarshal error: %w", err)
     }
-        
-    fmt.Printf("output: \n")
-    for k, v := range *output {
-        fmt.Printf("%6v :  %+v\n", k, v)
-    }
+    return *output, nil
 }
 
 
-//type HallRequest struct {
-//	Floor     int
-//	Direction string
-//}
-//
-//func main() {
-//	scanner := bufio.NewScanner(os.Stdin)
-//	
-//	fmt.Println("Hall Request Assigner")
-//	fmt.Println("Enter requests (format: floor direction)")
-//	fmt.Println("Example: 3 up")
-//	fmt.Println("Type 'quit' to exit")
-//	fmt.Println()
-//
-//	for {
-//		fmt.Print("> ")
-//		if !scanner.Scan() {
-//			break
-//		}
-//
-//		input := strings.TrimSpace(scanner.Text())
-//
-//		if input == "quit" {
-//			fmt.Println("Exiting...")
-//			break
-//		}
-//
-//		if input == "" {
-//			continue
-//		}
-//
-//		parts := strings.Fields(input)
-//		if len(parts) != 2 {
-//			fmt.Println("Invalid format. Use: floor direction")
-//			continue
-//		}
-//
-//		var floor int
-//		_, err := fmt.Sscanf(parts[0], "%d", &floor)
-//		if err != nil {
-//			fmt.Println("Floor must be a number")
-//			continue
-//		}
-//
-//		direction := strings.ToLower(parts[1])
-//		if direction != "up" && direction != "down" {
-//			fmt.Println("Direction must be 'up' or 'down'")
-//			continue
-//		}
-//
-//		request := HallRequest{Floor: floor, Direction: direction}
-//		fmt.Printf("Assigned: Floor %d, Direction %s\n", request.Floor, request.Direction)
-//	}
-//}
+func runHRA(
+    wvCh <-chan def.Worldview,
+    hraOutputCh chan<- map[string][][2]bool,
+) {
 
+    for {
+        select{
+        case wv := <-wvCh:
+            fmt.Println("Received new worldview, running cost function...")
+            input := worldviewToHRAInput(wv) 
+            jsonBytes, err := marshalInput(input)
+            if err != nil {
+                fmt.Println("Error marshaling input: ", err)
+                continue
+            }
+            ret, err := runHRAExecutable(jsonBytes)
+            if err != nil {
+                fmt.Println("Error running HRA executable: ", err)
+                return
+            }
+            output, err := unmarshalOutput(ret)
+            if err != nil {
+                fmt.Println("Error unmarshaling output: ", err)
+                return
+            }
+
+            /*TODO: reformat utput (mabye)*/
+            hraOutputCh <- output
+        }
+    }
+
+	/*input := HRAInput{
+		HallRequests: [][2]bool{{false, false}, {true, false}, {false, false}, {false, true}},
+		States: map[string]HRAElevState{
+			"one": HRAElevState{
+				Behavior:    "moving",
+				Floor:       2,
+				Direction:   "up",
+				CabRequests: []bool{false, false, false, true},
+			},
+			"two": HRAElevState{
+				Behavior:    "idle",
+				Floor:       0,
+				Direction:   "stop",
+				CabRequests: []bool{false, false, false, false},
+			},
+		},
+	}
+
+	output := new(map[string][][2]bool)
+	err = json.Unmarshal(ret, &output)
+	if err != nil {
+		fmt.Println("json.Unmarshal error: ", err)
+		return
+	}
+
+	fmt.Printf("output: \n")
+	for k, v := range *output {
+		fmt.Printf("%6v :  %+v\n", k, v)
+	}*/
+} 
 

@@ -1,26 +1,41 @@
-package main
+package definitions
 
-type Behavior struct {
-	Idle      int
-	Moving    int
-	DoorOpen  int
-	Maintenance int
+import "Driver-go/elevio"
+
+const NumFloors = 4
+
+type Behavior int
+
+const (
+	Idle Behavior = iota
+	Moving
+	DoorOpen
+)
+
+type OrderState uint8
+
+const (
+	NoCall       OrderState = 0
+	Available    OrderState = 1
+	Taken        OrderState = 2
+	Complete     OrderState = 3
+	Acknowledged OrderState = 4
+)
+
+type ElevState struct {
+	Floor         int
+	Direction     elevio.MotorDirection
+	Behavior      Behavior
+	Malfunctioned bool
+}
+
+type Node struct {
+	ID          string
+	CabRequests [NumFloors]OrderState
+	ElevState   ElevState
 }
 
 type Worldview struct {
-	nodes []node
+	Nodes        []Node
+	HallRequests [NumFloors][2]OrderState
 }
-
-type ElevState struct {
-    Floor     int
-    Direction Direction
-    Behavior  Behavior
-}
-
-type node struct {
-	id string
-	cabrequest Cabrequest
-	hallrequests Hallrequests
-	elevstate ElevState
-}	
-

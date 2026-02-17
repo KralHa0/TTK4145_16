@@ -8,7 +8,7 @@ import (
 	"reflect"
 )
 
-const bufSize = 1024
+const bufSize = 4096
 
 // Encodes received values from `chans` into type-tagged JSON, then broadcasts
 // it on `port`

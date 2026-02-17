@@ -1,13 +1,19 @@
 package definitions
 
-import "Driver-go/elevio"
-
-const NumFloors = 4
-
-type State int
+import (
+	"Driver-go/elevio"
+	"time"
+)
 
 const (
-	Idle State = iota
+	NumFloors = 4
+	msgFrq    = 15 * time.Millisecond
+)
+
+type Behavior int
+
+const (
+	Idle Behavior = iota
 	Moving
 	DoorOpen
 )
@@ -25,7 +31,7 @@ const (
 type ElevState struct {
 	Floor         int
 	Direction     elevio.MotorDirection
-	State         State
+	Behavior      Behavior
 	Malfunctioned bool
 }
 

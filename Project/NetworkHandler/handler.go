@@ -1,3 +1,5 @@
+/**/
+
 package networkhandler
 
 import (
@@ -8,6 +10,13 @@ import (
 	"os"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
+)
+
+var (
+	stateTx        = make(chan def.Worldview)
+	stateRx        = make(chan def.Worldview)
+	peerUpdateRx   = make(chan peers.PeerUpdate)
+	transmitEnable = make(chan bool)
 )
 
 const (
@@ -47,19 +56,38 @@ func CheckIP() string {
 }
 
 func SendWorldview(wv def.Worldview) {
-
+	stateTx <- wv
 }
+
 func ReceiveWorldview() def.Worldview {
-	return
+	return <-stateRx
 }
-func GetPeerUpdate() peers.PeerUpdate {
 
+func GetPeerUpdate() peers.PeerUpdate {
+	return <-peerUpdateRx
 }
 
 func DisableTransmit() {
-
+	go func() { transmitEnable <- false }()
 }
 
 func EnableTransmit() {
+	go func() { transmitEnable <- true }()
+}
 
+func NetworkRun(
+	localWvCh <-chan def.Worldview,
+	peerWcCh chan<- def.Worldview,
+	peerUpdateCh chan<- peers.PeerUpdate,
+) {
+	for {
+		select {
+		case wv := <-localWvCh:
+			SendWorldview(wv)
+		case wv := <-stateRx:
+			peerWcCh <- wv
+		case update := <-peerUpdateRx:
+			peerUpdateCh <- update
+		}
+	}
 }

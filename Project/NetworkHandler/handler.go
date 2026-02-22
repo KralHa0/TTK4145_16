@@ -5,7 +5,6 @@ import (
 	"Network-go/network/localip"
 	"Network-go/network/peers"
 	"fmt"
-	"os"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
@@ -20,6 +19,9 @@ var (
 	stateRx        = make(chan def.Worldview)
 	peerUpdateRx   = make(chan peers.PeerUpdate)
 	transmitEnable = make(chan bool)
+	aliveList      = def.AliveList{
+		Peers: make(map[string]bool),
+	}
 )
 
 func NetworkInit() {
@@ -39,7 +41,7 @@ func CheckIP() string {
 		fmt.Println(err)
 		localIP = "DISCONNECTED"
 	}
-	return fmt.Sprintf("peer-%s-%d", localIP, os.Getpid())
+	return fmt.Sprintf("%s", localIP)
 }
 
 func SendWorldview(wv def.Worldview) {
@@ -60,6 +62,19 @@ func DisableTransmit() {
 
 func EnableTransmit() {
 	go func() { transmitEnable <- true }()
+}
+
+func UpdateAliveList(update peers.PeerUpdate) {
+	if update.New != "" {
+		aliveList.Peers[update.New] = true
+	}
+	for _, id := range update.Lost {
+		aliveList.Peers[id] = false
+	}
+}
+
+func GetAliveList() *def.AliveList {
+	return &aliveList
 }
 
 func NetworkRun(

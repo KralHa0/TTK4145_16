@@ -1,30 +1,26 @@
 package tester
 
 import (
-	"Network-go/network/peers"
 	"fmt"
 	"time"
-
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
-	networkhandler "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
+	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
+	"Network-go/network/peers"
 )
 
 func RunNwTest() {
 	fmt.Println("=== Network Test ===")
-	id := networkhandler.CheckIP()
+	id := nw.CheckIP()
 	fmt.Println("Local ID:", id)
-	networkhandler.NetworkInit()
-
+	nw.NetworkInit()
 	localWorldviewCh := make(chan def.Worldview)
-	peerWorldviewCh := make(chan def.Worldview)
-	peerUpdateCh := make(chan peers.PeerUpdate)
-
-	go networkhandler.NetworkRun(localWorldviewCh, peerWorldviewCh, peerUpdateCh)
+	peerWorldviewCh  := make(chan def.Worldview)
+	peerUpdateCh     := make(chan peers.PeerUpdate)
+	go nw.NetworkRun(localWorldviewCh, peerWorldviewCh, peerUpdateCh)
 	go testPeerDiscovery(peerUpdateCh)
 	go testSendWorldview(localWorldviewCh, id)
 	go testReceiveWorldview(peerWorldviewCh, id)
 	go testDisconnectReconnect()
-
 	select {}
 }
 
@@ -37,19 +33,8 @@ func testPeerDiscovery(peerUpdateCh <-chan peers.PeerUpdate) {
 		for _, lost := range update.Lost {
 			fmt.Println("[PEER] Lost peer:", lost)
 		}
-		networkhandler.UpdateAliveList(update)
-		printAliveList(networkhandler.GetAliveList())
-	}
-}
-
-func printAliveList(aliveList *def.AliveList) {
-	fmt.Println("[ALIVE] Current peer statuses:")
-	for ip, alive := range aliveList.Peers {
-		status := "alive"
-		if !alive {
-			status = "dead"
-		}
-		fmt.Printf("        %s -> %s\n", ip, status)
+		nw.UpdateAliveList(update)
+		printAliveList(nw.GetAliveList())
 	}
 }
 
@@ -62,7 +47,7 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 				{
 					ID: id,
 					CabRequests: [def.NumFloors]def.OrderState{
-						def.Exist, def.NoCall, def.Acknowledged, def.NoCall, // Fixed: Available->Exist, Taken->Acknowledged
+						def.Available, def.NoCall, def.Taken, def.NoCall,
 					},
 					ElevState: def.ElevState{
 						Floor:         floor,
@@ -72,13 +57,12 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 				},
 			},
 			HallRequests: [def.NumFloors][2]def.OrderState{
-				{def.Exist, def.NoCall}, // Fixed: Available->Exist
+				{def.Available, def.NoCall},
 				{def.NoCall, def.NoCall},
-				{def.Acknowledged, def.NoCall}, // Fixed: Taken->Acknowledged
-				{def.NoCall, def.Exist},        // Fixed: Available->Exist
+				{def.Taken, def.NoCall},
+				{def.NoCall, def.Available},
 			},
 		}
-
 		localWorldviewCh <- wv
 		fmt.Printf("[SEND] Floor: %d | CabCalls: %v | HallCalls: %v\n",
 			wv.Nodes[0].ElevState.Floor,
@@ -113,9 +97,9 @@ func testReceiveWorldview(peerWorldviewCh <-chan def.Worldview, id string) {
 func testDisconnectReconnect() {
 	fmt.Println("\n--- Test: Disconnect/Reconnect ---")
 	time.Sleep(10 * time.Second)
-	fmt.Println("[DISC] Disabling transmit - peers should detect loss after 500ms")
-	networkhandler.DisableTransmit()
+	fmt.Println("[DISC] Disabling transmit")
+	nw.DisableTransmit()
 	time.Sleep(5 * time.Second)
-	fmt.Println("[DISC] Re-enabling transmit - peers should detect reconnect")
-	networkhandler.EnableTransmit()
+	fmt.Println("[DISC] Re-enabling transmit")
+	nw.EnableTransmit()
 }

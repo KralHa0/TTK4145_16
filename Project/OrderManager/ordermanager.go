@@ -161,3 +161,12 @@ func allAliveHallAtOrAbove(floor, dir int, threshold def.OrderState, aliveList *
 	}
 	return true
 }
+
+//Helpers
+func SetHallCall(floor, dir int, state def.OrderState) {
+	localWv.HallRequests[floor][dir] = state
+}
+
+func SetCabCall(floor int, state def.OrderState) {
+	localWv.Nodes[0].CabRequests[floor] = state
+}

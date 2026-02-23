@@ -1,11 +1,12 @@
 package tester
 
 import (
+	"Network-go/network/peers"
 	"fmt"
 	"time"
+
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
-	"Network-go/network/peers"
 )
 
 func RunNwTest() {
@@ -14,8 +15,8 @@ func RunNwTest() {
 	fmt.Println("Local ID:", id)
 	nw.NetworkInit()
 	localWorldviewCh := make(chan def.Worldview)
-	peerWorldviewCh  := make(chan def.Worldview)
-	peerUpdateCh     := make(chan peers.PeerUpdate)
+	peerWorldviewCh := make(chan def.Worldview)
+	peerUpdateCh := make(chan peers.PeerUpdate)
 	go nw.NetworkRun(localWorldviewCh, peerWorldviewCh, peerUpdateCh)
 	go testPeerDiscovery(peerUpdateCh)
 	go testSendWorldview(localWorldviewCh, id)
@@ -47,7 +48,7 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 				{
 					ID: id,
 					CabRequests: [def.NumFloors]def.OrderState{
-						def.Available, def.NoCall, def.Taken, def.NoCall,
+						def.Exist, def.NoCall, def.Acknowledged, def.NoCall,
 					},
 					ElevState: def.ElevState{
 						Floor:         floor,
@@ -57,10 +58,10 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 				},
 			},
 			HallRequests: [def.NumFloors][2]def.OrderState{
-				{def.Available, def.NoCall},
+				{def.Exist, def.NoCall},
 				{def.NoCall, def.NoCall},
-				{def.Taken, def.NoCall},
-				{def.NoCall, def.Available},
+				{def.Acknowledged, def.NoCall},
+				{def.NoCall, def.Exist},
 			},
 		}
 		localWorldviewCh <- wv

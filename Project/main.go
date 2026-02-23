@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+
 	tester "github.com/KralHa0/TTK4145_16/Project/Tester"
 )
 
 func main() {
+	fmt.Println("Starting...")
 	if len(os.Args) < 2 {
 		printUsage()
 		return

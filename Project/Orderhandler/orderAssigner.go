@@ -12,12 +12,8 @@ import (
 
 /*TODO:
 make scheduler start thingamabob, and make it run the cost function every time it receives a new/unique worldview from the orderManager.
-*/
 
-
-/*TODO: Generalize toBool functionality for both hall and cab calls*/
-
-
+TODO: Generalize toBool functionality for both hall and cab calls*/
 
 // Struct members must be public in order to be accessible by json.Marshal/.Unmarshal
 // This means they must start with a capital letter, so we need to use field renaming struct tags to make them camelCase
@@ -142,37 +138,32 @@ func unmarshalOutput(ret []byte) (map[string][][2]bool, error) {
 	return *output, nil
 }
 
-/*TODO: fix for select issues. make test*/
 func runHRA(
 	wvCh <-chan def.Worldview,
 	hraOutputCh chan<- map[string][][2]bool,
 ) {
-
-	for {
-		select {
-		case wv := <-wvCh:
-			fmt.Println("Received new worldview, running cost function...")
-			input := worldviewToHRAInput(wv)
-			jsonBytes, err := marshalInput(input)
-			if err != nil {
-				fmt.Println("Error marshaling input: ", err)
-				continue
-			}
-			ret, err := runHRAExecutable(jsonBytes)
-			if err != nil {
-				fmt.Println("Error running HRA executable: ", err)
-				return
-			}
-			output, err := unmarshalOutput(ret)
-			if err != nil {
-				fmt.Println("Error unmarshaling output: ", err)
-				return
-			}
-
-			/*TODO: reformat utput (mabye)*/
-			hraOutputCh <- output
+	for wv := range wvCh {
+		fmt.Println("Received new worldview, running cost function...")
+		input := worldviewToHRAInput(wv)
+		jsonBytes, err := marshalInput(input)
+		if err != nil {
+			fmt.Println("Error marshaling input: ", err)
+			continue
 		}
+		ret, err := runHRAExecutable(jsonBytes)
+		if err != nil {
+			fmt.Println("Error running HRA executable: ", err)
+			continue
+		}
+		output, err := unmarshalOutput(ret)
+		if err != nil {
+			fmt.Println("Error unmarshaling output: ", err)
+			continue
+		}
+		hraOutputCh <- output
 	}
+}
+
 	/* Output format: map of key= id, value = list of orders
 
 	Ex: 
@@ -190,36 +181,5 @@ func runHRA(
 		  [up-1, down-1],
 		  [...],
 		  [up-N, down-N]]
-
-	*/
-
-	/*input := HRAInput{
-		HallRequests: [][2]bool{{false, false}, {true, false}, {false, false}, {false, true}},
-		States: map[string]HRAElevState{
-			"one": HRAElevState{
-				Behavior:    "moving",
-				Floor:       2,
-				Direction:   "up",
-				CabRequests: []bool{false, false, false, true},
-			},
-			"two": HRAElevState{
-				Behavior:    "idle",
-				Floor:       0,
-				Direction:   "stop",
-				CabRequests: []bool{false, false, false, false},
-			},
-		},
-	}
-
-	output := new(map[string][][2]bool)
-	err = json.Unmarshal(ret, &output)
-	if err != nil {
-		fmt.Println("json.Unmarshal error: ", err)
-		return
-	}
-
-	fmt.Printf("output: \n")
-	for k, v := range *output {
-		fmt.Printf("%6v :  %+v\n", k, v)
-	}*/
-}
+*/
+	

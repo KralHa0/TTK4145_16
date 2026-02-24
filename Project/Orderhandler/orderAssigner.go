@@ -52,15 +52,27 @@ func stateToString(s def.Behavior) string {
 	}
 }
 
-// TODO: change what is considered true/false (ONLY 2 is true all else is false)
+/*func assignTrueOrders(inputList //generic array of numfloors x 1 or 2 cols )  {
+	for rows := 0; rows < len(inputList); rows++ {
+		for cols := 0; cols < len(inputList[rows]); cols++ {
+			if inputList[rows][cols] == def.Acknowledged {
+				inputList[rows][cols] = true
+			} else {
+				inputList[rows][cols] = false
+			}
+		}
+	}
+}*/
+
+/*TODO: make a general func to assign true or false for a */
 func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool {
 	boolRequests := make([][2]bool, def.NumFloors)
 	for floor := 0; floor < def.NumFloors; floor++ {
 		for dir := 0; dir <= 1; dir++ {
-			if hallRequests[floor][dir] == def.NoCall || hallRequests[floor][dir] == def.Complete {
-				boolRequests[floor][dir] = false
-			} else {
+			if hallRequests[floor][dir] == def.Acknowledged {
 				boolRequests[floor][dir] = true
+			} else {
+				boolRequests[floor][dir] = false
 			}
 		}
 	}
@@ -74,10 +86,10 @@ func makeHRAStateMap(nodes []def.Node) map[string]HRAElevState {
 	for _, node := range nodes {
 		cabRequestBools := make([]bool, def.NumFloors)
 		for floor := 0; floor < def.NumFloors; floor++ {
-			if node.CabRequests[floor] == def.NoCall || node.CabRequests[floor] == def.Complete {
-				cabRequestBools[floor] = false
-			} else {
+			if node.CabRequests[floor] == def.Acknowledged {
 				cabRequestBools[floor] = true
+			} else {
+				cabRequestBools[floor] = false
 			}
 		}
 

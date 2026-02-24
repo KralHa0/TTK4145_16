@@ -1,8 +1,14 @@
 package definitions
 
-import "Driver-go/elevio"
+import (
+	"Driver-go/elevio"
+	"time"
+)
 
-const NumFloors = 4
+const (
+	NumFloors = 4
+	MsgFrq    = 100 * time.Millisecond
+)
 
 type Behavior int
 
@@ -16,10 +22,9 @@ type OrderState uint8
 
 const (
 	NoCall       OrderState = 0
-	Available    OrderState = 1
-	Taken        OrderState = 2
+	Exist        OrderState = 1
+	Acknowledged OrderState = 2
 	Complete     OrderState = 3
-	Acknowledged OrderState = 4
 )
 
 type ElevState struct {
@@ -38,4 +43,8 @@ type Node struct {
 type Worldview struct {
 	Nodes        []Node
 	HallRequests [NumFloors][2]OrderState
+}
+
+type AliveList struct {
+	Peers map[string]bool //Map of peer IDs to their alive status
 }

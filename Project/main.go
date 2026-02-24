@@ -5,6 +5,7 @@ import (
 	"os"
 
 	tester "github.com/KralHa0/TTK4145_16/Project/Tester"
+	pp "github.com/KralHa0/TTK4145_16/Project/Backup"
 )
 
 func main() {
@@ -30,4 +31,8 @@ func printUsage() {
 	fmt.Println("  nw   — network test (single machine)")
 	fmt.Println("  om   — order manager test (single machine, hardcoded)")
 	fmt.Println("  run  — combined network + updater test (multi machine)")
+}
+
+func InitSystem(){
+	pp.
 }

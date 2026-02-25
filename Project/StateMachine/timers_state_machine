@@ -1,0 +1,84 @@
+import (
+	def "elevatorproject/definitions"
+	"elevatorproject/driver"
+	"time"
+)
+
+
+//function is done.
+func door_timer(door_reset_ch chan bool, door_timeout_ch chan bool) {
+	timer := time.NewTimer(def.door_open_timeout * time.Millisecond)
+	timer.Stop()
+	for {
+		select {
+		case <-reset_door_ch:
+			//drain timer.C before reset.
+			if (!timer.Stop()) {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(def.door_open_timeout * time.Millisecond)
+		case <-timer.C:
+			when_door_timeout(door_timeout_ch)
+		}
+	}
+}
+
+
+func reset_door_timer(door_reset_ch chan bool) {
+	door_reset_ch <- true
+}
+
+
+func when_door_timeout(door_timeout_ch chan bool){
+	door_timeout_ch <- true
+}
+
+
+
+//function is done.
+func watchdog_timer(watchdog_reset_ch chan bool, watchdog_timeout_ch chan bool) {
+	timer := time.NewTimer(def.watchdog_timeout * time.Millisecond)  
+	timer.Stop()
+	for {
+		select {
+		case <-watchdog_reset_ch:
+			//drain timer.C before reset.
+			if (!timer.Stop()) {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(def.watchdog_timeout * time.Millisecond)
+		case <-timer.C:
+			when_watchdog_timeout(watchdog_timeout_ch)
+		}
+	}
+}
+
+
+func reset_watchdog_timer(watchdog_reset_ch chan bool) {
+	watchdog_reset_ch <- true      
+}
+
+
+func when_watchdog_timeout(watchdog_timeout_ch chan bool){
+	watchdog_timeout_ch <- true
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

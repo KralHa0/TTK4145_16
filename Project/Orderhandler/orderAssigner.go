@@ -10,7 +10,7 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-/*TODO: assigner does not take cab request 
+/*TODO: assigner does not take cab request
 
 TODO: Generalize toBool functionality for both hall and cab calls*/
 
@@ -18,7 +18,7 @@ TODO: Generalize toBool functionality for both hall and cab calls*/
 // This means they must start with a capital letter, so we need to use field renaming struct tags to make them camelCase
 
 type HRAElevState struct {
-	Behavior    string `json:"behaviour"`
+	ElevState   string `json:"behaviour"`
 	Floor       int    `json:"floor"`
 	Direction   string `json:"direction"`
 	CabRequests []bool `json:"cabRequests"`
@@ -40,7 +40,7 @@ func directionToString(d elevio.MotorDirection) string {
 	}
 }
 
-func stateToString(s def.Behavior) string {
+func stateToString(s def.PossibleStates) string {
 	switch s {
 	case def.Moving:
 		return "moving"
@@ -50,7 +50,6 @@ func stateToString(s def.Behavior) string {
 		return "idle"
 	}
 }
-
 
 /*func assignTrueOrders(inputList //generic array of numfloors x 1 or 2 cols )  {
 	for rows := 0; rows < len(inputList); rows++ {
@@ -79,7 +78,6 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 	return boolRequests
 } /*TODO: make acc test */
 
-
 // TODO: change what is considered true/false (ONLY 2 is true all else is false)
 func makeHRAStateMap(nodes []def.Node) map[string]HRAElevState {
 	States := make(map[string]HRAElevState)
@@ -94,9 +92,9 @@ func makeHRAStateMap(nodes []def.Node) map[string]HRAElevState {
 		}
 
 		States[node.ID] = HRAElevState{
-			Behavior:    stateToString(node.ElevState.Behavior),
-			Floor:       node.ElevState.Floor,
-			Direction:   directionToString(node.ElevState.Direction),
+			ElevState:   stateToString(node.Elevator.ElevState),
+			Floor:       node.Elevator.CurrentFloor,
+			Direction:   directionToString(node.Elevator.Direction),
 			CabRequests: cabRequestBools,
 		}
 	}
@@ -150,7 +148,7 @@ func unmarshalOutput(ret []byte) (map[string][][2]bool, error) {
 	return *output, nil
 }
 
-/*make init func som bygger wvCh og hraOutputCh, slik som i test func. 
+/*make init func som bygger wvCh og hraOutputCh, slik som i test func.
 send chanelnavn til ordermanager, og start runHRA i en goroutine.
 - mota wvCh og hraOutputCh fra main
 - go runHRA(wvCh, hraOutputCh) i init func
@@ -159,7 +157,6 @@ send chanelnavn til ordermanager, og start runHRA i en goroutine.
 - buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
 	- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
 */
-
 
 func runHRA(
 	wvCh <-chan def.Worldview,
@@ -188,22 +185,21 @@ func runHRA(
 	}
 }
 
-	/* Output format: map of key= id, value = list of orders
+/* Output format: map of key= id, value = list of orders
 
-	Ex: 
-	id1 : [[up-0, down-0],
-		  [up-1, down-1],
-		  [...],
-		  [up-N, down-N]]
-		
-	id2 : [[up-0, down-0],
-		  [up-1, down-1],
-		  [...],
-		  [up-N, down-N]]
+Ex:
+id1 : [[up-0, down-0],
+	  [up-1, down-1],
+	  [...],
+	  [up-N, down-N]]
 
-	id3 : [[up-0, down-0],
-		  [up-1, down-1],
-		  [...],
-		  [up-N, down-N]]
+id2 : [[up-0, down-0],
+	  [up-1, down-1],
+	  [...],
+	  [up-N, down-N]]
+
+id3 : [[up-0, down-0],
+	  [up-1, down-1],
+	  [...],
+	  [up-N, down-N]]
 */
-	

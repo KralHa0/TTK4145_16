@@ -5,22 +5,31 @@ import (
 	"time"
 )
 
-/* to run in terminal from project root:
-go test -v ./Orderhandler/...
-*/
-
 const (
-	NumFloors = 4
-	MsgFrq    = 100 * time.Millisecond
+	NumFloors     = 4
+	NumButtons    = 3
+	BetweenFloors = -1 //a floor-value used under init.
+	GroundFloor   = 0
+	MsgFrq        = 100 * time.Millisecond
+	Addr          = "localhost"
+	Port          = 15657
+
+	DoorOpenTimeout = 3000 * time.Millisecond // door should be open for 3 seconds, then close
+	WatchdogTimeout = 5000 * time.Millisecond
 )
 
-type Behavior int
+type PossibleStates int
 
 const (
-	Idle Behavior = iota
-	Moving
+	Moving PossibleStates = iota
+	Idle
 	DoorOpen
 )
+
+type OrderMessage struct {
+	Floor     int
+	Direction elevio.MotorDirection
+}
 
 type OrderState uint8
 
@@ -31,17 +40,17 @@ const (
 	Complete     OrderState = 3
 )
 
-type ElevState struct {
-	Floor         int
+type Elevator struct {
+	CurrentFloor  int
 	Direction     elevio.MotorDirection
-	Behavior      Behavior
+	ElevState     PossibleStates
 	Malfunctioned bool
 }
 
 type Node struct {
 	ID          string
 	CabRequests [NumFloors]OrderState
-	ElevState   ElevState
+	Elevator    Elevator
 }
 
 type Worldview struct {

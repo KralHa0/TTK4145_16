@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+/* to run in terminal from project root:
+go test -v ./Orderhandler/...
+*/
+
 const (
 	NumFloors = 4
 	MsgFrq    = 100 * time.Millisecond

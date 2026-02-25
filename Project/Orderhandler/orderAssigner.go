@@ -10,8 +10,7 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-/*TODO:
-make scheduler start thingamabob, and make it run the cost function every time it receives a new/unique worldview from the orderManager.
+/*TODO: assigner does not take cab request 
 
 TODO: Generalize toBool functionality for both hall and cab calls*/
 
@@ -51,6 +50,7 @@ func stateToString(s def.Behavior) string {
 		return "idle"
 	}
 }
+
 
 /*func assignTrueOrders(inputList //generic array of numfloors x 1 or 2 cols )  {
 	for rows := 0; rows < len(inputList); rows++ {
@@ -150,6 +150,17 @@ func unmarshalOutput(ret []byte) (map[string][][2]bool, error) {
 	return *output, nil
 }
 
+/*make init func som bygger wvCh og hraOutputCh, slik som i test func. 
+send chanelnavn til ordermanager, og start runHRA i en goroutine.
+- mota wvCh og hraOutputCh fra main
+- go runHRA(wvCh, hraOutputCh) i init func
+	-da vil runHRA kjøre i bakgrunnen og vente på nye worldviews, og sende output til ordermanager hver gang den kjører kostfunksjonen
+
+- buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
+	- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
+*/
+
+
 func runHRA(
 	wvCh <-chan def.Worldview,
 	hraOutputCh chan<- map[string][][2]bool,
@@ -172,6 +183,7 @@ func runHRA(
 			fmt.Println("Error unmarshaling output: ", err)
 			continue
 		}
+
 		hraOutputCh <- output
 	}
 }

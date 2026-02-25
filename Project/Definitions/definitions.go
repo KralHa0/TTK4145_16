@@ -7,28 +7,28 @@ import (
 
 const (
 	NumFloors     = 4
-	numButtons    = 3
-	betweenFloors = -1 //a floor-value used under init.
-	groundFloor   = 0
+	NumButtons    = 3
+	BetweenFloors = -1 //a floor-value used under init.
+	GroundFloor   = 0
 	MsgFrq        = 100 * time.Millisecond
 	Addr          = "localhost"
 	Port          = 15657
 
-	doorOpenTimeout = 3000 * time.Millisecond // door should be open for 3 seconds, then close
-	watchdogTimeout = 5000 * time.Millisecond
+	DoorOpenTimeout = 3000 * time.Millisecond // door should be open for 3 seconds, then close
+	WatchdogTimeout = 5000 * time.Millisecond
 )
 
 type PossibleStates int
 
 const (
-	moving PossibleStates = iota
-	idle
-	doorOpen
+	Moving PossibleStates = iota
+	Idle
+	DoorOpen
 )
 
 type OrderMessage struct {
-	floor     int
-	direction elevio.MotorDirection
+	Floor     int
+	Direction elevio.MotorDirection
 }
 
 type OrderState uint8
@@ -41,10 +41,10 @@ const (
 )
 
 type Elevator struct {
-	currentFloor  int
-	direction     elevio.MotorDirection
+	CurrentFloor  int
+	Direction     elevio.MotorDirection
 	ElevState     PossibleStates
-	malfunctioned bool
+	Malfunctioned bool
 }
 
 type Node struct {

@@ -19,7 +19,7 @@ func OrderManagerInit(localNodeID string, initialCabRequests [def.NumFloors]def.
 			{
 				ID:          localNodeID,
 				CabRequests: initialCabRequests,
-				ElevState:   def.ElevState{},
+				Elevator:   def.Elevator{},
 			},
 		},
 		HallRequests: [def.NumFloors][2]def.OrderState{},
@@ -87,7 +87,7 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList *def.AliveList) bool {
 						}
 					}
 				}
-				localWv.Nodes[i].ElevState = peerNode.ElevState
+				localWv.Nodes[i].Elevator = peerNode.Elevator
 				found = true
 				break
 			}

@@ -50,7 +50,7 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 					CabRequests: [def.NumFloors]def.OrderState{
 						def.Exist, def.NoCall, def.Acknowledged, def.NoCall,
 					},
-					ElevState: def.ElevState{
+					Elevator: def.Elevator{
 						Floor:         floor,
 						Behavior:      def.Moving,
 						Malfunctioned: false,
@@ -66,7 +66,7 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 		}
 		localWorldviewCh <- wv
 		fmt.Printf("[SEND] Floor: %d | CabCalls: %v | HallCalls: %v\n",
-			wv.Nodes[0].ElevState.Floor,
+			wv.Nodes[0].Elevator.Floor,
 			wv.Nodes[0].CabRequests,
 			wv.HallRequests,
 		)
@@ -86,9 +86,9 @@ func testReceiveWorldview(peerWorldviewCh <-chan def.Worldview, id string) {
 		}
 		fmt.Printf("[RECV] From: %s | Floor: %d | Behavior: %d | Malfunctioned: %v\n",
 			wv.Nodes[0].ID,
-			wv.Nodes[0].ElevState.Floor,
-			wv.Nodes[0].ElevState.Behavior,
-			wv.Nodes[0].ElevState.Malfunctioned,
+			wv.Nodes[0].Elevator.Floor,
+			wv.Nodes[0].Elevator.Behavior,
+			wv.Nodes[0].Elevator.Malfunctioned,
 		)
 		fmt.Printf("       CabCalls: %v\n", wv.Nodes[0].CabRequests)
 		fmt.Printf("       HallCalls: %v\n", wv.HallRequests)

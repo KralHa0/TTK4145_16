@@ -6,17 +6,30 @@ import (
 )
 
 const (
-	NumFloors = 4
-	MsgFrq    = 100 * time.Millisecond
+	NumFloors     = 4
+	numButtons    = 3
+	betweenFloors = -1 //a floor-value used under init.
+	groundFloor   = 0
+	MsgFrq        = 100 * time.Millisecond
+	Addr          = "localhost"
+	Port          = 15657
+
+	doorOpenTimeout = 3000 * time.Millisecond // door should be open for 3 seconds, then close
+	watchdogTimeout = 5000 * time.Millisecond
 )
 
-type Behavior int
+type PossibleStates int
 
 const (
-	Idle Behavior = iota
-	Moving
-	DoorOpen
+	moving PossibleStates = iota
+	idle
+	doorOpen
 )
+
+type OrderMessage struct {
+	floor     int
+	direction elevio.MotorDirection
+}
 
 type OrderState uint8
 
@@ -27,17 +40,17 @@ const (
 	Complete     OrderState = 3
 )
 
-type ElevState struct {
-	Floor         int
-	Direction     elevio.MotorDirection
-	Behavior      Behavior
-	Malfunctioned bool
+type Elevator struct {
+	currentFloor  int
+	direction     elevio.MotorDirection
+	ElevState     PossibleStates
+	malfunctioned bool
 }
 
 type Node struct {
 	ID          string
 	CabRequests [NumFloors]OrderState
-	ElevState   ElevState
+	Elevator    Elevator
 }
 
 type Worldview struct {

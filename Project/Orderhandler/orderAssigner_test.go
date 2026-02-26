@@ -29,8 +29,8 @@ func TestRunHRA(t *testing.T) {
 			{
 				ID: "one",
 				Elevator: def.Elevator{
-					ElevState:  def.Moving,
-					Direction: elevio.MD_Up,CurrentFloor:     2,
+					ElevState: def.Moving,
+					Direction: elevio.MD_Up, CurrentFloor: 2,
 				},
 				CabRequests: [def.NumFloors]def.OrderState{
 					def.NoCall, def.NoCall, def.NoCall, def.Acknowledged,
@@ -39,9 +39,9 @@ func TestRunHRA(t *testing.T) {
 			{
 				ID: "two",
 				Elevator: def.Elevator{
-					ElevState:  def.Idle,
-					CurrentFloor:     0,
-					Direction: elevio.MD_Stop,
+					ElevState:    def.Idle,
+					CurrentFloor: 0,
+					Direction:    elevio.MD_Stop,
 				},
 				CabRequests: [def.NumFloors]def.OrderState{
 					def.Acknowledged, def.NoCall, def.NoCall, def.NoCall,

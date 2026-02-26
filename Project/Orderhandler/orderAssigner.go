@@ -180,6 +180,7 @@ func runHRA(
 			fmt.Println("Error unmarshaling output: ", err)
 			continue
 		}
+		fmt.Println("No errors during execution")
 
 		hraOutputCh <- output
 	}

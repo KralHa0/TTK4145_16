@@ -12,7 +12,7 @@ import (
 
 func RunNwTest() {
 	fmt.Println("=== Network Test ===")
-	id := nw.CheckIP()
+	id := nw.GetIp()
 	fmt.Println("Local ID:", id)
 	nw.NetworkInit()
 	localWorldviewCh := make(chan def.Worldview)
@@ -86,7 +86,7 @@ func testReceiveWorldview(peerWorldviewCh <-chan def.Worldview, id string) {
 		if wv.Nodes[0].ID == id {
 			continue
 		}
-		fmt.Printf("[RECV] From: %s | Floor: %d | Behavior: %d | Malfunctioned: %v\n",
+		fmt.Printf("[RECV] From: %s | Floor: %d | Direction: %d | Behavior: %d | Malfunctioned: %v\n",
 			wv.Nodes[0].ID,
 			wv.Nodes[0].Elevator.CurrentFloor,
 			wv.Nodes[0].Elevator.Direction,

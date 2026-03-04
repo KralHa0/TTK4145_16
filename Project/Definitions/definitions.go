@@ -18,6 +18,19 @@ const (
 	WatchdogTimeout = 5000 * time.Millisecond
 )
 
+type CallType int
+
+const (
+	Hallcall CallType = iota
+	Cabcall
+)
+
+type NewOrderMessage struct {
+	Floor     int
+	Direction elevio.MotorDirection
+	CallType  CallType
+}
+
 type PossibleStates int
 
 const (

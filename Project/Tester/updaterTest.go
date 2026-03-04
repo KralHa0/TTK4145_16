@@ -23,6 +23,8 @@ func RunOMTest() {
 	newOrderCh       := make(chan def.NewOrderMessage, 10)
 	networkWvCh      := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
+	fsmElevStateCh   := make(chan def.Elevator, 10)
+    malfunctionCh	 := make(chan bool, 10)
 
 	peerID := def.NodeID("192.168.1.100")
 
@@ -47,6 +49,8 @@ func RunOMTest() {
 		networkWvCh,
 		orderHandlerWvCh,
 		getAliveList,
+		fsmElevStateCh,
+		malfunctionCh,
 	)
 
 	go listenOrderHandler(orderHandlerWvCh)

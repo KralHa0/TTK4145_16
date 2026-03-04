@@ -28,6 +28,8 @@ func RunTest() {
 	orderHandlerWvCh := make(chan def.Worldview, 10)
 	peerUpdateCh     := make(chan peers.PeerUpdate, 10)
 	localWvCh        := make(chan def.Worldview, 10)
+	fsmElevStateCh   := make(chan def.Elevator, 10)
+    malfunctionCh	 := make(chan bool, 10)
 
 	go nw.NetworkRun(localWvCh, peerWvCh, peerUpdateCh)
 
@@ -45,6 +47,8 @@ func RunTest() {
 		networkWvCh,
 		orderHandlerWvCh,
 		nw.GetAliveList,
+		fsmElevStateCh,
+		malfunctionCh,
 	)
 
 	go func() {

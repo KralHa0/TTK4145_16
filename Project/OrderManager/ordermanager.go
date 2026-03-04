@@ -46,12 +46,14 @@ func OrderManagerInit(localNodeID def.NodeID, initialCabRequests [def.NumFloors]
 // --------------------------------------------------
 
 func UpdaterRun(
-	peerWvCh         <-chan def.Worldview,
-	orderCompleteCh  <-chan def.OrderMessage,
-	newOrderCh       <-chan def.NewOrderMessage,
-	networkWvCh      chan<- def.Worldview,
+	peerWvCh <-chan def.Worldview,
+	orderCompleteCh <-chan def.OrderMessage,
+	newOrderCh <-chan def.NewOrderMessage,
+	networkWvCh chan<- def.Worldview,
 	orderHandlerWvCh chan<- def.Worldview,
-	getAliveList     func() def.AliveList,
+	getAliveList func() def.AliveList,
+	fsmElevStateCh <-chan def.Elevator,
+	malfunctionCh <-chan bool,
 ) {
 	ticker := time.NewTicker(def.MsgFrq)
 	defer ticker.Stop()
@@ -81,7 +83,14 @@ func UpdaterRun(
 		// Order completion from FSM
 		case orderMsg := <-orderCompleteCh:
 			applyCompletion(orderMsg.Floor, orderMsg.Dir)
+
+		case elevState := <-fsmElevStateCh:
+			localWv.Nodes[0].Elevator = elevState
+
+		case malfunction := <-malfunctionCh:
+			localWv.Nodes[0].Elevator.Malfunctioned = malfunction
 		}
+
 	}
 }
 

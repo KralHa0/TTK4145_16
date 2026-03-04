@@ -62,6 +62,8 @@ func (d Direction) ToMotorDir() elevio.MotorDirection {
 	return elevio.MD_Down
 }
 
+type AssignedOrders [NumFloors][2]bool
+
 // --------------------------------------------------
 // CallType
 // --------------------------------------------------

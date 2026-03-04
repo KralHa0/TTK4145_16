@@ -10,7 +10,20 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-/*
+/* TODO:
+		Restructure output
+			send only own outputlist
+		Make init funtion
+			take in own ID
+		restructure insertIntoOutput
+			iterate only over own Id key
+		Make code pretty
+			Restructure as ADT with interface and the like
+
+		Fault tolerance
+			acc test everywhere
+			Implement buffered channels
+
 
 TODO: Generalize toBool functionality for both hall and cab calls*/
 
@@ -51,7 +64,9 @@ func stateToString(s def.PossibleStates) string {
 	}
 }
 
-/*func assignTrueOrders(inputList //generic array of numfloors x 1 or 2 cols )  {
+/* TODO: make a general func to assign true or false for different depth array
+
+func assignTrueOrders(inputList //generic array of numfloors x 1 or 2 cols )  {
 	for rows := 0; rows < len(inputList); rows++ {
 		for cols := 0; cols < len(inputList[rows]); cols++ {
 			if inputList[rows][cols] == def.Acknowledged {
@@ -63,7 +78,6 @@ func stateToString(s def.PossibleStates) string {
 	}
 }*/
 
-/*TODO: make a general func to assign true or false for a */
 func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool {
 	boolRequests := make([][2]bool, def.NumFloors)
 	for floor := 0; floor < def.NumFloors; floor++ {
@@ -78,7 +92,6 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 	return boolRequests
 } /*TODO: make acc test */
 
-// TODO: change what is considered true/false (ONLY 2 is true all else is false)
 func makeHRAStateMap(nodes []def.Node) map[string]HRAElevState {
 	States := make(map[string]HRAElevState)
 	for _, node := range nodes {
@@ -110,8 +123,6 @@ func worldviewToHRAInput(w def.Worldview) HRAInput {
 
 	return HRAInput
 } /*TODO: make acc test */
-
-/*TODO: run costexe functionality*/
 
 func marshalInput(input HRAInput) ([]byte, error) {
 	jsonBytes, err := json.Marshal(input)
@@ -166,15 +177,20 @@ func unmarshalOutput(ret []byte) (map[string][][2]bool, error) {
 
 /*make init func som bygger wvCh og hraOutputCh, slik som i test func.
 send chanelnavn til ordermanager, og start runHRA i en goroutine.
-- mota wvCh og hraOutputCh fra main
+- mota wvCh og outputCh fra main
+- mota IP/nodeID fra nw
+	- lagre ID lokalt
+
 - go runHRA(wvCh, hraOutputCh) i init func
 	-da vil runHRA kjøre i bakgrunnen og vente på nye worldviews, og sende output til ordermanager hver gang den kjører kostfunksjonen
+-
+
 
 - buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
 	- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
 */
 
-func runHRA(
+func RunHRA(
 	wvCh <-chan def.Worldview,
 	hraOutputCh chan<- map[string][][2]bool,
 ) {
@@ -227,4 +243,13 @@ id3 : [[up-0, down-0],
 	  [up-1, down-1],
 	  [...],
 	  [up-N, down-N]]
+*/
+
+/* ønsket nytt output:
+[[up-0, down-0],
+  [up-1, down-1],
+  [...],
+  [up-N, down-N]]
+
+dvs: send bare valuelista tilhørende own ID
 */

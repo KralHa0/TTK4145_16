@@ -50,7 +50,7 @@ func TestRunHRA(t *testing.T) {
 		},
 	}
 
-	go runHRA(wvCh, hraOutputCh)
+	go RunHRA(wvCh, hraOutputCh)
 
 	wvCh <- wv
 

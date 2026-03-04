@@ -50,7 +50,8 @@ func TestRunHRA(t *testing.T) {
 		},
 	}
 
-	go RunHRA(wvCh, hraOutputCh)
+	a := NewOrderAssigner("testNode", wvCh, hraOutputCh)
+	go a.RunORA()
 
 	wvCh <- wv
 

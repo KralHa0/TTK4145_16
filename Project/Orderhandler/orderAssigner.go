@@ -10,6 +10,224 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
+// Interface:
+type IOrderAssigner interface {
+	RunORA()
+}
+
+// Type Struct:
+type OrderAssigner struct {
+	wvCh       <-chan def.Worldview
+	outputCh   chan<- map[string][][2]bool //TODO: make separate struct to cohesefy this/ abstraction
+	executable string
+	ownID      string //implement stufff yippi
+}
+
+/*TODO:
+Evaluate what vars should be public or not
+Make separate struct for ORAOutpurchan
+*/
+
+type ORAElevState struct {
+	ElevState   string `json:"behaviour"`
+	Floor       int    `json:"floor"`
+	Direction   string `json:"direction"`
+	CabRequests []bool `json:"cabRequests"`
+}
+
+type ORAInput struct {
+	HallRequests [][2]bool               `json:"hallRequests"`
+	States       map[string]ORAElevState `json:"states"`
+}
+
+// Constructor:
+func NewOrderAssigner(
+	ownID string,
+	wvCh <-chan def.Worldview,
+	outputCh chan<- map[string][][2]bool,
+) *OrderAssigner {
+	exe := ""
+	switch runtime.GOOS {
+	case "linux":
+		exe = "hall_request_assigner"
+	case "windows":
+		exe = "hall_request_assigner.exe"
+	default:
+		panic("OS not supported")
+	}
+	return &OrderAssigner{
+		wvCh:       wvCh,
+		outputCh:   outputCh,
+		executable: exe,
+		ownID:      ownID,
+	}
+}
+
+/*
+Public met: Run the cost function, is called once to initilize
+
+	TODO:
+	- buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
+	- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
+*/
+func (o *OrderAssigner) RunORA() {
+	for wv := range o.wvCh {
+		fmt.Println("Received new worldview, running cost function...")
+
+		input := o.worldviewToORAInput(wv)
+
+		jsonBytes, err := makeExecutableInput(input)
+		if err != nil {
+			fmt.Println("Error marshaling input: ", err)
+			continue
+		}
+
+		fmt.Println("JSON being sent to executable:")
+		fmt.Println(string(jsonBytes))
+
+		costFuncResult, err := o.runORAExecutable(jsonBytes)
+		if err != nil {
+			fmt.Println("Error running ORA executable: ", err)
+			continue
+		}
+
+		output, err := makeResultMap(costFuncResult)
+		if err != nil {
+			fmt.Println("Error unmarshaling output: ", err)
+			continue
+		}
+
+		insertCabCallsIntoOutput(output, wv)
+
+		fmt.Println("No errors during execution")
+		//fmt.Println(output)
+		o.outputCh <- output //[o.ownID] // fix type stuff
+	}
+}
+
+///////Called directly from RunORA/////////
+
+// TODO: rename func to fit
+func (o *OrderAssigner) worldviewToORAInput(w def.Worldview) ORAInput {
+	ORAInput := ORAInput{
+		HallRequests: hallrequestToBool(w.HallRequests),
+		States:       makeORAStateMap(w.Nodes),
+	}
+	return ORAInput
+}
+
+// rename to makeExecutableInput
+func makeExecutableInput(input ORAInput) ([]byte, error) {
+	jsonBytes, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("json.Marshal error: %w", err)
+	}
+	return jsonBytes, nil
+}
+
+func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
+	// use o.executable instead of re-detecting OS each call
+	ret, err := exec.Command("../Orderhandler/"+o.executable, "-i", string(jsonBytes)).CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("exec.Command error: %w, output: %s", err, string(ret))
+	}
+	return ret, nil
+}
+
+// rename to better name
+func makeResultMap(ret []byte) (map[string][][2]bool, error) {
+	output := new(map[string][][2]bool)
+	err := json.Unmarshal(ret, output)
+	if err != nil {
+		return nil, fmt.Errorf("json.Unmarshal error: %w", err)
+	}
+	return *output, nil
+}
+
+// make subfunc of unmarshal thing
+func insertCabCallsIntoOutput(output map[string][][2]bool, wv def.Worldview) {
+
+	for outputId, orderList := range output { //iterate over all keys
+		for _, inputNode := range wv.Nodes {
+			inputNodeId := inputNode.ID
+			if outputId == inputNodeId {
+				for floor := range len(orderList) {
+					if inputNode.CabRequests[floor] == def.Acknowledged {
+						output[outputId][floor] = [2]bool{true, true}
+					}
+				}
+			}
+		}
+	}
+}
+
+/////called from subfuncs of RunORA /////////
+
+// convert hallreq Type to executable bool list
+func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool {
+	boolRequests := make([][2]bool, def.NumFloors)
+	for floor := 0; floor < def.NumFloors; floor++ {
+		for dir := 0; dir < 2; dir++ {
+			if hallRequests[floor][dir] == def.Acknowledged {
+				boolRequests[floor][dir] = true
+			} else {
+				boolRequests[floor][dir] = false
+			}
+		}
+	}
+	return boolRequests
+} /*TODO: make acc test */
+
+// convert node type to executable Elevstate
+func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
+	States := make(map[string]ORAElevState)
+	for _, node := range nodes {
+		cabRequestBools := make([]bool, def.NumFloors)
+		for floor := 0; floor < def.NumFloors; floor++ {
+			if node.CabRequests[floor] == def.Acknowledged {
+				cabRequestBools[floor] = true
+			} else {
+				cabRequestBools[floor] = false
+			}
+		}
+
+		States[node.ID] = ORAElevState{
+			ElevState:   stateToString(node.Elevator.ElevState),
+			Floor:       node.Elevator.CurrentFloor,
+			Direction:   directionToString(node.Elevator.Direction),
+			CabRequests: cabRequestBools,
+		}
+	}
+
+	return States
+} /*TODO: make acc test */
+
+// convert from dirtype to executabe string
+func directionToString(d elevio.MotorDirection) string {
+	switch d {
+	case elevio.MD_Up:
+		return "up"
+	case elevio.MD_Down:
+		return "down"
+	default:
+		return "stop"
+	}
+}
+
+// convert fron PossibeState type to executable string
+func stateToString(s def.PossibleStates) string {
+	switch s {
+	case def.Moving:
+		return "moving"
+	case def.DoorOpen:
+		return "doorOpen"
+	default:
+		return "idle"
+	}
+}
+
+////////Called from subfunctions//////////////
+
 /* TODO:
 		Restructure output
 			send only own outputlist
@@ -30,40 +248,6 @@ TODO: Generalize toBool functionality for both hall and cab calls*/
 // Struct members must be public in order to be accessible by json.Marshal/.Unmarshal
 // This means they must start with a capital letter, so we need to use field renaming struct tags to make them camelCase
 
-type HRAElevState struct {
-	ElevState   string `json:"behaviour"`
-	Floor       int    `json:"floor"`
-	Direction   string `json:"direction"`
-	CabRequests []bool `json:"cabRequests"`
-}
-
-type HRAInput struct {
-	HallRequests [][2]bool               `json:"hallRequests"`
-	States       map[string]HRAElevState `json:"states"`
-}
-
-func directionToString(d elevio.MotorDirection) string {
-	switch d {
-	case elevio.MD_Up:
-		return "up"
-	case elevio.MD_Down:
-		return "down"
-	default:
-		return "stop"
-	}
-}
-
-func stateToString(s def.PossibleStates) string {
-	switch s {
-	case def.Moving:
-		return "moving"
-	case def.DoorOpen:
-		return "doorOpen"
-	default:
-		return "idle"
-	}
-}
-
 /* TODO: make a general func to assign true or false for different depth array
 
 func assignTrueOrders(inputList //generic array of numfloors x 1 or 2 cols )  {
@@ -77,154 +261,6 @@ func assignTrueOrders(inputList //generic array of numfloors x 1 or 2 cols )  {
 		}
 	}
 }*/
-
-func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool {
-	boolRequests := make([][2]bool, def.NumFloors)
-	for floor := 0; floor < def.NumFloors; floor++ {
-		for dir := 0; dir < 2; dir++ {
-			if hallRequests[floor][dir] == def.Acknowledged {
-				boolRequests[floor][dir] = true
-			} else {
-				boolRequests[floor][dir] = false
-			}
-		}
-	}
-	return boolRequests
-} /*TODO: make acc test */
-
-func makeHRAStateMap(nodes []def.Node) map[string]HRAElevState {
-	States := make(map[string]HRAElevState)
-	for _, node := range nodes {
-		cabRequestBools := make([]bool, def.NumFloors)
-		for floor := 0; floor < def.NumFloors; floor++ {
-			if node.CabRequests[floor] == def.Acknowledged {
-				cabRequestBools[floor] = true
-			} else {
-				cabRequestBools[floor] = false
-			}
-		}
-
-		States[node.ID] = HRAElevState{
-			ElevState:   stateToString(node.Elevator.ElevState),
-			Floor:       node.Elevator.CurrentFloor,
-			Direction:   directionToString(node.Elevator.Direction),
-			CabRequests: cabRequestBools,
-		}
-	}
-
-	return States
-} /*TODO: make acc test */
-
-func worldviewToHRAInput(w def.Worldview) HRAInput {
-	HRAInput := HRAInput{
-		HallRequests: hallrequestToBool(w.HallRequests),
-		States:       makeHRAStateMap(w.Nodes),
-	}
-
-	return HRAInput
-} /*TODO: make acc test */
-
-func marshalInput(input HRAInput) ([]byte, error) {
-	jsonBytes, err := json.Marshal(input)
-	if err != nil {
-		return nil, fmt.Errorf("json.Marshal error: %w", err)
-	}
-	return jsonBytes, nil
-}
-
-func runHRAExecutable(jsonBytes []byte) ([]byte, error) {
-	hraExecutable := ""
-	switch runtime.GOOS {
-	case "linux":
-		hraExecutable = "hall_request_assigner"
-	case "windows":
-		hraExecutable = "hall_request_assigner.exe"
-	default:
-		panic("OS not supported")
-	}
-
-	ret, err := exec.Command("../Orderhandler/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("exec.Command error: %w, output: %s", err, string(ret))
-	}
-	return ret, nil
-}
-
-func insertCabCallsIntoOutput(output map[string][][2]bool, wv def.Worldview) {
-
-	for outputId, orderList := range output { //iterate over all keys
-		for _, inputNode := range wv.Nodes {
-			inputNodeId := inputNode.ID
-			if outputId == inputNodeId {
-				for floor := range len(orderList) {
-					if inputNode.CabRequests[floor] == def.Acknowledged {
-						output[outputId][floor] = [2]bool{true, true}
-					}
-				}
-			}
-		}
-	}
-}
-
-func unmarshalOutput(ret []byte) (map[string][][2]bool, error) {
-	output := new(map[string][][2]bool)
-	err := json.Unmarshal(ret, output)
-	if err != nil {
-		return nil, fmt.Errorf("json.Unmarshal error: %w", err)
-	}
-	return *output, nil
-}
-
-/*make init func som bygger wvCh og hraOutputCh, slik som i test func.
-send chanelnavn til ordermanager, og start runHRA i en goroutine.
-- mota wvCh og outputCh fra main
-- mota IP/nodeID fra nw
-	- lagre ID lokalt
-
-- go runHRA(wvCh, hraOutputCh) i init func
-	-da vil runHRA kjøre i bakgrunnen og vente på nye worldviews, og sende output til ordermanager hver gang den kjører kostfunksjonen
--
-
-
-- buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
-	- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
-*/
-
-func RunHRA(
-	wvCh <-chan def.Worldview,
-	hraOutputCh chan<- map[string][][2]bool,
-) {
-	for wv := range wvCh {
-		fmt.Println("Received new worldview, running cost function...")
-		input := worldviewToHRAInput(wv)
-		jsonBytes, err := marshalInput(input)
-		if err != nil {
-			fmt.Println("Error marshaling input: ", err)
-			continue
-		}
-
-		fmt.Println("JSON being sent to executable:")
-		fmt.Println(string(jsonBytes))
-
-		ret, err := runHRAExecutable(jsonBytes)
-		if err != nil {
-			fmt.Println("Error running HRA executable: ", err)
-			continue
-		}
-
-		output, err := unmarshalOutput(ret)
-		if err != nil {
-			fmt.Println("Error unmarshaling output: ", err)
-			continue
-		}
-
-		insertCabCallsIntoOutput(output, wv)
-
-		fmt.Println("No errors during execution")
-		//fmt.Println(output)
-		hraOutputCh <- output
-	}
-}
 
 /* Output format: map of key= id, value = list of orders
 

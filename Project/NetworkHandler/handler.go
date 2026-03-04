@@ -22,21 +22,18 @@ var (
 	transmitEnable = make(chan bool)
 
 	aliveList = def.AliveList{
-		Peers: make(map[string]bool),
+		Peers: make(map[def.NodeID]bool), // keyed by NodeID
 	}
 	aliveListMu sync.RWMutex
 
-	// ip is the local node's IP — assigned in NetworkInit, never shadowed
-	ip string
+	ip def.NodeID // typed as NodeID — invalid state is detectable via IsValid()
 )
 
 func NetworkInit() {
-	// Fix: assignment not short declaration, so package-level ip is set
-	ip = CheckIP()
-
+	ip = def.NodeID(CheckIP()) // assign to package-level ip, no shadowing
 	go bcast.Transmitter(bcastPort, stateTx)
 	go bcast.Receiver(bcastPort, stateRx)
-	go peers.Transmitter(peersPort, ip, transmitEnable)
+	go peers.Transmitter(peersPort, string(ip), transmitEnable)
 	go peers.Receiver(peersPort, peerUpdateRx)
 	go func() { transmitEnable <- true }()
 }
@@ -50,7 +47,7 @@ func CheckIP() string {
 	return fmt.Sprintf("%s", localIP)
 }
 
-func GetIp() string {
+func GetIp() def.NodeID {
 	return ip
 }
 
@@ -79,10 +76,10 @@ func UpdateAliveList(update peers.PeerUpdate) {
 	defer aliveListMu.Unlock()
 
 	if update.New != "" {
-		aliveList.Peers[update.New] = true
+		aliveList.Peers[def.NodeID(update.New)] = true
 	}
 	for _, id := range update.Lost {
-		aliveList.Peers[id] = false
+		aliveList.Peers[def.NodeID(id)] = false
 	}
 }
 
@@ -90,7 +87,7 @@ func GetAliveList() def.AliveList {
 	aliveListMu.RLock()
 	defer aliveListMu.RUnlock()
 
-	copyMap := make(map[string]bool)
+	copyMap := make(map[def.NodeID]bool)
 	for k, v := range aliveList.Peers {
 		copyMap[k] = v
 	}
@@ -98,8 +95,8 @@ func GetAliveList() def.AliveList {
 }
 
 func NetworkRun(
-	localWvCh   <-chan def.Worldview,
-	peerWvCh    chan<- def.Worldview,
+	localWvCh    <-chan def.Worldview,
+	peerWvCh     chan<- def.Worldview,
 	peerUpdateCh chan<- peers.PeerUpdate,
 ) {
 	for {

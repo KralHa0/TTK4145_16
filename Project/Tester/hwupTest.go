@@ -2,7 +2,6 @@ package tester
 
 import (
 	"Network-go/network/peers"
-	hw "Driver-go/elevio"
 	"bufio"
 	"fmt"
 	"os"
@@ -17,24 +16,21 @@ func RunTest() {
 	fmt.Println("=== Combined Network + Updater Test ===")
 
 	nw.NetworkInit()
-	localID := nw.GetIp()
+	localID := nw.GetIp() // def.NodeID
 	fmt.Println("Local ID:", localID)
 
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
 
-	// --- Channels ---
 	peerWvCh         := make(chan def.Worldview, 10)
-	orderCompleteCh  := make(chan def.OrderMessage, 10)    // FSM -> OM: completed orders
-	newOrderCh       := make(chan def.NewOrderMessage, 10) // FSM -> OM: new button presses
+	orderCompleteCh  := make(chan def.OrderMessage, 10)
+	newOrderCh       := make(chan def.NewOrderMessage, 10)
 	networkWvCh      := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
 	peerUpdateCh     := make(chan peers.PeerUpdate, 10)
 	localWvCh        := make(chan def.Worldview, 10)
 
-	// --- Network ---
 	go nw.NetworkRun(localWvCh, peerWvCh, peerUpdateCh)
 
-	// --- Alive list updates ---
 	go func() {
 		for update := range peerUpdateCh {
 			nw.UpdateAliveList(update)
@@ -42,7 +38,6 @@ func RunTest() {
 		}
 	}()
 
-	// --- OrderManager: single owner of localWv ---
 	go om.UpdaterRun(
 		peerWvCh,
 		orderCompleteCh,
@@ -52,7 +47,6 @@ func RunTest() {
 		nw.GetAliveList,
 	)
 
-	// --- Forward outbound worldview to network ---
 	go func() {
 		for wv := range networkWvCh {
 			localWvCh <- wv
@@ -64,10 +58,6 @@ func RunTest() {
 	printControls()
 	handleKeyboard(newOrderCh, orderCompleteCh)
 }
-
-// --------------------------------------------------
-// Keyboard handler
-// --------------------------------------------------
 
 func printControls() {
 	fmt.Println("\n--- Keyboard Controls ---")
@@ -92,26 +82,25 @@ func handleKeyboard(
 
 		switch parts[0] {
 
-		// New hall call
 		case "h":
 			if len(parts) < 3 {
 				fmt.Println("Usage: h <floor> <dir>")
 				continue
 			}
 			floor := atoi(parts[1])
-			dir   := atoi(parts[2])
-			if !validFloor(floor) || (dir != 0 && dir != 1) {
+			dirInt := atoi(parts[2])
+			if !validFloor(floor) || (dirInt != 0 && dirInt != 1) {
 				fmt.Println("Invalid floor or direction")
 				continue
 			}
+			dir := def.Direction(dirInt)
 			newOrderCh <- def.NewOrderMessage{
-				Floor:     floor,
-				Direction: indexToMotorDir(dir),
-				CallType:  def.Hallcall,
+				Floor:    floor,
+				Dir:      dir,
+				CallType: def.Hallcall,
 			}
-			fmt.Printf("[KEY] New hall call: floor %d dir %d\n", floor, dir)
+			fmt.Printf("[KEY] New hall call: floor %d dir %v\n", floor, dir)
 
-		// New cab call
 		case "c":
 			if len(parts) < 2 {
 				fmt.Println("Usage: c <floor>")
@@ -123,29 +112,29 @@ func handleKeyboard(
 				continue
 			}
 			newOrderCh <- def.NewOrderMessage{
-				Floor:     floor,
-				Direction: hw.MD_Stop, // direction unused for cab calls inside OM
-				CallType:  def.Cabcall,
+				Floor:    floor,
+				Dir:      def.DirUp, // ignored for cab calls inside OM
+				CallType: def.Cabcall,
 			}
 			fmt.Printf("[KEY] New cab call: floor %d\n", floor)
 
-		// Signal order completion
 		case "s":
 			if len(parts) < 3 {
 				fmt.Println("Usage: s <floor> <dir>")
 				continue
 			}
 			floor := atoi(parts[1])
-			dir   := atoi(parts[2])
-			if !validFloor(floor) || (dir != 0 && dir != 1) {
+			dirInt := atoi(parts[2])
+			if !validFloor(floor) || (dirInt != 0 && dirInt != 1) {
 				fmt.Println("Invalid floor or direction")
 				continue
 			}
+			dir := def.Direction(dirInt)
 			orderCompleteCh <- def.OrderMessage{
-				Floor:     floor,
-				Direction: indexToMotorDir(dir),
+				Floor: floor,
+				Dir:   dir,
 			}
-			fmt.Printf("[KEY] Completion signaled: floor %d dir %d\n", floor, dir)
+			fmt.Printf("[KEY] Completion signaled: floor %d dir %v\n", floor, dir)
 
 		case "p":
 			fmt.Println("--- Local Worldview ---")
@@ -159,18 +148,4 @@ func handleKeyboard(
 			fmt.Println("Unknown command. Use h, c, s, p, or q.")
 		}
 	}
-}
-
-// --------------------------------------------------
-// Utility
-// --------------------------------------------------
-
-// indexToMotorDir converts a 0/1 index to elevio.MotorDirection.
-// Mirrors motorDirToIndex inside ordermanager — kept local to avoid
-// exposing an internal helper through the OM package API.
-func indexToMotorDir(i int) hw.MotorDirection {
-	if i == 0 {
-		return hw.MD_Up
-	}
-	return hw.MD_Down
 }

@@ -7,22 +7,26 @@ import (
 	"time"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
-	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
+	nw  "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 )
 
 func RunNwTest() {
 	fmt.Println("=== Network Test ===")
-	id := nw.GetIp()
-	fmt.Println("Local ID:", id)
+
 	nw.NetworkInit()
+	id := nw.GetIp() // def.NodeID — NetworkInit must run first
+	fmt.Println("Local ID:", id)
+
 	localWorldviewCh := make(chan def.Worldview)
-	peerWorldviewCh := make(chan def.Worldview)
-	peerUpdateCh := make(chan peers.PeerUpdate)
+	peerWorldviewCh  := make(chan def.Worldview)
+	peerUpdateCh     := make(chan peers.PeerUpdate)
+
 	go nw.NetworkRun(localWorldviewCh, peerWorldviewCh, peerUpdateCh)
 	go testPeerDiscovery(peerUpdateCh)
 	go testSendWorldview(localWorldviewCh, id)
 	go testReceiveWorldview(peerWorldviewCh, id)
 	go testDisconnectReconnect()
+
 	select {}
 }
 
@@ -40,7 +44,7 @@ func testPeerDiscovery(peerUpdateCh <-chan peers.PeerUpdate) {
 	}
 }
 
-func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
+func testSendWorldview(localWorldviewCh chan<- def.Worldview, id def.NodeID) {
 	fmt.Println("\n--- Test: Sending Worldview ---")
 	floor := 0
 	for {
@@ -60,10 +64,10 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 				},
 			},
 			HallRequests: [def.NumFloors][2]def.OrderState{
-				{def.Exist, def.NoCall},
-				{def.NoCall, def.NoCall},
+				{def.Exist,        def.NoCall},
+				{def.NoCall,       def.NoCall},
 				{def.Acknowledged, def.NoCall},
-				{def.NoCall, def.Exist},
+				{def.NoCall,       def.Exist},
 			},
 		}
 		localWorldviewCh <- wv
@@ -77,16 +81,17 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 	}
 }
 
-func testReceiveWorldview(peerWorldviewCh <-chan def.Worldview, id string) {
+func testReceiveWorldview(peerWorldviewCh <-chan def.Worldview, id def.NodeID) {
 	fmt.Println("\n--- Test: Receiving Worldview ---")
 	for wv := range peerWorldviewCh {
 		if len(wv.Nodes) == 0 {
 			continue
 		}
+		// Filter out own worldviews — NodeID comparison is now type-safe
 		if wv.Nodes[0].ID == id {
 			continue
 		}
-		fmt.Printf("[RECV] From: %s | Floor: %d | Direction: %d | Behavior: %d | Malfunctioned: %v\n",
+		fmt.Printf("[RECV] From: %s | Floor: %d | Direction: %v | Behavior: %d | Malfunctioned: %v\n",
 			wv.Nodes[0].ID,
 			wv.Nodes[0].Elevator.CurrentFloor,
 			wv.Nodes[0].Elevator.Direction,
@@ -94,7 +99,15 @@ func testReceiveWorldview(peerWorldviewCh <-chan def.Worldview, id string) {
 			wv.Nodes[0].Elevator.Malfunctioned,
 		)
 		fmt.Printf("       CabCalls: %v\n", wv.Nodes[0].CabRequests)
-		fmt.Printf("       HallCalls: %v\n", wv.HallRequests)
+		fmt.Printf("       HallCalls up/down per floor:")
+		for floor := 0; floor < def.NumFloors; floor++ {
+			fmt.Printf(" [%d: up=%d dn=%d]",
+				floor,
+				wv.HallRequests[floor][def.DirUp],
+				wv.HallRequests[floor][def.DirDown],
+			)
+		}
+		fmt.Println()
 	}
 }
 

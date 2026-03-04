@@ -1,7 +1,6 @@
 package tester
 
 import (
-	hw "Driver-go/elevio"
 	"fmt"
 	"time"
 
@@ -14,7 +13,7 @@ func RunOMTest() {
 	fmt.Println("=== OrderManager Test ===")
 
 	nw.NetworkInit()
-	localID := nw.GetIp()
+	localID := nw.GetIp() // now def.NodeID
 	fmt.Println("Local ID:", localID)
 
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
@@ -25,16 +24,16 @@ func RunOMTest() {
 	networkWvCh      := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
 
-	peerID := "192.168.1.100"
+	peerID := def.NodeID("192.168.1.100")
 
 	aliveList := def.AliveList{
-		Peers: map[string]bool{
+		Peers: map[def.NodeID]bool{
 			localID: true,
 			peerID:  true,
 		},
 	}
 	getAliveList := func() def.AliveList {
-		copyMap := make(map[string]bool)
+		copyMap := make(map[def.NodeID]bool)
 		for k, v := range aliveList.Peers {
 			copyMap[k] = v
 		}
@@ -64,21 +63,21 @@ func simulateNewOrders(newOrderCh chan<- def.NewOrderMessage) {
 	time.Sleep(500 * time.Millisecond)
 
 	orders := []def.NewOrderMessage{
-		{Floor: 0, Direction: hw.MD_Down, CallType: def.Hallcall},
-		{Floor: 2, Direction: hw.MD_Up,   CallType: def.Hallcall},
-		{Floor: 3, Direction: hw.MD_Up,   CallType: def.Hallcall},
-		{Floor: 1, Direction: hw.MD_Stop, CallType: def.Cabcall},
+		{Floor: 0, Dir: def.DirDown, CallType: def.Hallcall},
+		{Floor: 2, Dir: def.DirUp,   CallType: def.Hallcall},
+		{Floor: 3, Dir: def.DirUp,   CallType: def.Hallcall},
+		{Floor: 1, Dir: def.DirUp,   CallType: def.Cabcall}, // Dir ignored for cab
 	}
 
 	for _, order := range orders {
 		fmt.Printf("[NEW ORDER SIM] floor=%d dir=%v type=%v\n",
-			order.Floor, order.Direction, order.CallType)
+			order.Floor, order.Dir, order.CallType)
 		newOrderCh <- order
 		time.Sleep(100 * time.Millisecond)
 	}
 }
 
-func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
+func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID def.NodeID) {
 	time.Sleep(1 * time.Second)
 	fmt.Println("\n[PEER SIM] Worldview 1 — peer has no knowledge yet")
 	peerWvCh <- def.Worldview{
@@ -99,10 +98,10 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
 			Elevator:    def.Elevator{CurrentFloor: 0},
 		}},
 		HallRequests: [def.NumFloors][2]def.OrderState{
-			{def.NoCall, def.Exist}, // floor 0: index 1 = down
+			{def.NoCall, def.Exist}, // floor 0: DirDown = index 1
 			{def.NoCall, def.NoCall},
-			{def.Exist,  def.NoCall}, // floor 2: index 0 = up
-			{def.Exist,  def.NoCall}, // floor 3: index 0 = up
+			{def.Exist,  def.NoCall}, // floor 2: DirUp = index 0
+			{def.Exist,  def.NoCall}, // floor 3: DirUp = index 0
 		},
 	}
 
@@ -127,14 +126,14 @@ func simulateSMCompletions(orderCompleteCh chan<- def.OrderMessage) {
 	time.Sleep(4 * time.Second)
 
 	completions := []def.OrderMessage{
-		{Floor: 0, Direction: hw.MD_Down},
-		{Floor: 1, Direction: hw.MD_Up},  // cab — direction ignored by OM
-		{Floor: 2, Direction: hw.MD_Up},
-		{Floor: 3, Direction: hw.MD_Up},
+		{Floor: 0, Dir: def.DirDown},
+		{Floor: 1, Dir: def.DirUp},  // cab — Dir ignored by OM
+		{Floor: 2, Dir: def.DirUp},
+		{Floor: 3, Dir: def.DirUp},
 	}
 
 	for _, msg := range completions {
-		fmt.Printf("\n[SM SIM] Completion at floor %d dir %v\n", msg.Floor, msg.Direction)
+		fmt.Printf("\n[SM SIM] Completion at floor %d dir %v\n", msg.Floor, msg.Dir)
 		orderCompleteCh <- msg
 		time.Sleep(500 * time.Millisecond)
 	}

@@ -16,16 +16,14 @@ func listenOrderHandler(orderHandlerWvCh <-chan def.Worldview) {
 func printWorldview(wv def.Worldview) {
 	fmt.Println("  HallRequests:")
 	for floor := 0; floor < def.NumFloors; floor++ {
-		// Fix: index 0 = up (MD_Up), index 1 = down (MD_Down)
 		fmt.Printf("    Floor %d: up=%d down=%d\n", floor,
-			wv.HallRequests[floor][0],
-			wv.HallRequests[floor][1],
+			wv.HallRequests[floor][def.DirUp],
+			wv.HallRequests[floor][def.DirDown],
 		)
 	}
 	for _, node := range wv.Nodes {
 		fmt.Printf("  Node %s:\n", node.ID)
 		fmt.Printf("    CabRequests: %v\n", node.CabRequests)
-		// Fix: added %v for Direction so all 4 args match 4 format verbs
 		fmt.Printf("    ElevState: Floor=%d Dir=%v Behavior=%d Malfunctioned=%v\n",
 			node.Elevator.CurrentFloor,
 			node.Elevator.Direction,
@@ -37,12 +35,12 @@ func printWorldview(wv def.Worldview) {
 
 func printAliveList(aliveList def.AliveList) {
 	fmt.Println("[ALIVE] Current peer statuses:")
-	for ip, alive := range aliveList.Peers {
+	for id, alive := range aliveList.Peers {
 		status := "alive"
 		if !alive {
 			status = "dead"
 		}
-		fmt.Printf("        %s -> %s\n", ip, status)
+		fmt.Printf("        %s -> %s\n", id, status)
 	}
 }
 

@@ -1,7 +1,6 @@
 package ordermanager
 
 import (
-	hw "Driver-go/elevio"
 	"sync"
 	"time"
 
@@ -14,18 +13,22 @@ import (
 
 var (
 	localWv   def.Worldview
-	localWvMu sync.RWMutex // protects localWv for external reads via GetLocalWv
+	localWvMu sync.RWMutex
 )
 
-// peerWorldviews stores the last known worldview per peer ID,
-// required for correct allAliveHallAtOrAbove consensus checks.
-var peerWorldviews = make(map[string]def.Worldview)
+// peerWorldviews stores the last known worldview per peer ID
+// for use in allAliveHallAtOrAbove consensus checks.
+var peerWorldviews = make(map[def.NodeID]def.Worldview)
 
 // --------------------------------------------------
 // Initialization
 // --------------------------------------------------
 
-func OrderManagerInit(localNodeID string, initialCabRequests [def.NumFloors]def.OrderState) {
+func OrderManagerInit(localNodeID def.NodeID, initialCabRequests [def.NumFloors]def.OrderState) {
+	if !localNodeID.IsValid() {
+		panic("OrderManagerInit: invalid node ID — check NetworkInit ran before OrderManagerInit")
+	}
+
 	localWv = def.Worldview{
 		Nodes: []def.Node{
 			{
@@ -43,12 +46,12 @@ func OrderManagerInit(localNodeID string, initialCabRequests [def.NumFloors]def.
 // --------------------------------------------------
 
 func UpdaterRun(
-	peerWvCh <-chan def.Worldview,
-	orderCompleteCh <-chan def.OrderMessage,
-	newOrderCh <-chan def.NewOrderMessage,
-	networkWvCh chan<- def.Worldview,
+	peerWvCh         <-chan def.Worldview,
+	orderCompleteCh  <-chan def.OrderMessage,
+	newOrderCh       <-chan def.NewOrderMessage,
+	networkWvCh      chan<- def.Worldview,
 	orderHandlerWvCh chan<- def.Worldview,
-	getAliveList func() def.AliveList,
+	getAliveList     func() def.AliveList,
 ) {
 	ticker := time.NewTicker(def.MsgFrq)
 	defer ticker.Stop()
@@ -56,8 +59,7 @@ func UpdaterRun(
 	for {
 		select {
 
-		// Periodic broadcast — non-blocking send to avoid stalling the loop
-		// if the network layer is temporarily slow.
+		// Periodic broadcast — non-blocking to avoid stalling the loop
 		case <-ticker.C:
 			select {
 			case networkWvCh <- deepCopyWorldview(localWv):
@@ -71,15 +73,14 @@ func UpdaterRun(
 				sendToOrderHandler(orderHandlerWvCh)
 			}
 
-		// New button press from FSM (hall or cab)
+		// New button press from FSM
 		case newOrder := <-newOrderCh:
 			applyNewOrder(newOrder)
-			// Notify order handler immediately so it can (re)assign elevators
 			sendToOrderHandler(orderHandlerWvCh)
 
 		// Order completion from FSM
 		case orderMsg := <-orderCompleteCh:
-			applyCompletion(orderMsg.Floor, orderMsg.Direction)
+			applyCompletion(orderMsg.Floor, orderMsg.Dir)
 		}
 	}
 }
@@ -102,30 +103,36 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 			local := localWv.HallRequests[floor][dir]
 			peer := peerWv.HallRequests[floor][dir]
 
-			// Propagate existence: if any peer knows about a call, we adopt it
+			// NoCall -> Exist: propagate existence from any peer
 			if local == def.NoCall && peer >= def.Exist {
-				localWv.HallRequests[floor][dir] = def.Exist
-			}
-
-			// Acknowledge once all alive peers have registered the call
-			if localWv.HallRequests[floor][dir] == def.Exist {
-				if allAliveHallAtOrAbove(floor, dir, def.Exist, aliveList) {
-					localWv.HallRequests[floor][dir] = def.Acknowledged
-					reachedAck = true
+				if validTransition(local, def.Exist) {
+					localWv.HallRequests[floor][dir] = def.Exist
 				}
 			}
 
-			// Adopt completion from peer once we are acknowledged
-			if localWv.HallRequests[floor][dir] == def.Acknowledged && peer == def.Complete {
-				localWv.HallRequests[floor][dir] = def.Complete
+			// Exist -> Acknowledged: all alive peers must confirm Exist
+			if localWv.HallRequests[floor][dir] == def.Exist {
+				if allAliveHallAtOrAbove(floor, dir, def.Exist, aliveList) {
+					if validTransition(localWv.HallRequests[floor][dir], def.Acknowledged) {
+						localWv.HallRequests[floor][dir] = def.Acknowledged
+						reachedAck = true
+					}
+				}
 			}
 
-			// Clear once all alive peers have seen the completion,
-			// or if the peer has already cycled back to NoCall.
+			// Acknowledged -> Complete: adopt completion signal from peer
+			if localWv.HallRequests[floor][dir] == def.Acknowledged && peer == def.Complete {
+				if validTransition(localWv.HallRequests[floor][dir], def.Complete) {
+					localWv.HallRequests[floor][dir] = def.Complete
+				}
+			}
+
+			// Complete -> NoCall: all alive peers confirm Complete, or peer already reset
 			if localWv.HallRequests[floor][dir] == def.Complete {
-				if allAliveHallAtOrAbove(floor, dir, def.Complete, aliveList) ||
-					peer == def.NoCall {
-					localWv.HallRequests[floor][dir] = def.NoCall
+				if allAliveHallAtOrAbove(floor, dir, def.Complete, aliveList) || peer == def.NoCall {
+					if validTransition(localWv.HallRequests[floor][dir], def.NoCall) {
+						localWv.HallRequests[floor][dir] = def.NoCall
+					}
 				}
 			}
 		}
@@ -139,52 +146,40 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 // --------------------------------------------------
 
 func applyNewOrder(msg def.NewOrderMessage) {
-    dir := motorDirToIndex(msg.Direction)
-
-    if msg.CallType == def.Cabcall {
-        // Cab calls are local-only — no peer consensus needed,
-        // go straight to Acknowledged so the FSM can serve them immediately
-        if localWv.Nodes[0].CabRequests[msg.Floor] == def.NoCall {
-            localWv.Nodes[0].CabRequests[msg.Floor] = def.Acknowledged
-        }
-    } else {
-        if localWv.HallRequests[msg.Floor][dir] == def.NoCall {
-            localWv.HallRequests[msg.Floor][dir] = def.Exist
-        }
-    }
+	if msg.CallType == def.Cabcall {
+		cur := localWv.Nodes[0].CabRequests[msg.Floor]
+		if validTransition(cur, def.Acknowledged) {
+			localWv.Nodes[0].CabRequests[msg.Floor] = def.Acknowledged
+		}
+	} else {
+		cur := localWv.HallRequests[msg.Floor][msg.Dir]
+		if validTransition(cur, def.Exist) {
+			localWv.HallRequests[msg.Floor][msg.Dir] = def.Exist
+		}
+	}
 }
 
 // --------------------------------------------------
 // Completion from FSM
 // --------------------------------------------------
 
-// applyCompletion marks the hall request for the given direction — and the
-// cab request — as Complete. Direction is required because stopping at a
-// floor while travelling up should not clear a downward hall request
-// (and vice versa). The cab request is always cleared since it is
-// directionless.
-func applyCompletion(floor int, direction hw.MotorDirection) {
-    dir := motorDirToIndex(direction)
+func applyCompletion(floor int, dir def.Direction) {
+	cur := localWv.HallRequests[floor][dir]
+	if validTransition(cur, def.Complete) {
+		localWv.HallRequests[floor][dir] = def.Complete
+	}
 
-    if localWv.HallRequests[floor][dir] == def.Acknowledged {
-        localWv.HallRequests[floor][dir] = def.Complete
-    }
-
-    // Cab requests are local-only — clear immediately on completion,
-    // no peer consensus step needed (unlike hall requests)
-    if localWv.Nodes[0].CabRequests[floor] == def.Acknowledged {
-        localWv.Nodes[0].CabRequests[floor] = def.NoCall
-    }
+	// Cab requests are local-only — clear immediately, no peer consensus needed
+	cabCur := localWv.Nodes[0].CabRequests[floor]
+	if validTransition(cabCur, def.NoCall) {
+		localWv.Nodes[0].CabRequests[floor] = def.NoCall
+	}
 }
 
 // --------------------------------------------------
 // Alive consensus helper
 // --------------------------------------------------
 
-// allAliveHallAtOrAbove checks that every alive peer's last known worldview
-// has the given hall request at or above `threshold`. This was previously
-// broken — it only checked localWv for every peer instead of each peer's
-// own worldview.
 func allAliveHallAtOrAbove(
 	floor int,
 	dir int,
@@ -196,7 +191,6 @@ func allAliveHallAtOrAbove(
 			continue
 		}
 
-		// Local node: check localWv directly
 		if peerID == localWv.Nodes[0].ID {
 			if localWv.HallRequests[floor][dir] < threshold {
 				return false
@@ -204,10 +198,8 @@ func allAliveHallAtOrAbove(
 			continue
 		}
 
-		// Remote peer: use last stored worldview
 		peerWv, known := peerWorldviews[peerID]
 		if !known {
-			// We have no worldview from this peer yet — cannot confirm
 			return false
 		}
 		if peerWv.HallRequests[floor][dir] < threshold {
@@ -215,6 +207,14 @@ func allAliveHallAtOrAbove(
 		}
 	}
 	return true
+}
+
+// --------------------------------------------------
+// Transition guard
+// --------------------------------------------------
+
+func validTransition(from, to def.OrderState) bool {
+	return to == from+1 || (from == def.Complete && to == def.NoCall)
 }
 
 // --------------------------------------------------
@@ -231,9 +231,6 @@ func GetLocalWv() def.Worldview {
 // Internal helpers
 // --------------------------------------------------
 
-// sendToOrderHandler sends a deep copy of localWv to the order handler.
-// Non-blocking: if the handler is busy the worldview will arrive on the
-// next state change instead, preventing the UpdaterRun loop from stalling.
 func sendToOrderHandler(orderHandlerWvCh chan<- def.Worldview) {
 	select {
 	case orderHandlerWvCh <- deepCopyWorldview(localWv):
@@ -243,19 +240,8 @@ func sendToOrderHandler(orderHandlerWvCh chan<- def.Worldview) {
 
 func deepCopyWorldview(src def.Worldview) def.Worldview {
 	copyWv := src
-
 	nodesCopy := make([]def.Node, len(src.Nodes))
 	copy(nodesCopy, src.Nodes)
 	copyWv.Nodes = nodesCopy
-
 	return copyWv
-}
-
-// motorDirToIndex converts MD_Up → 0, MD_Down → 1 for use as a
-// HallRequests array index. MD_Stop should never be passed here.
-func motorDirToIndex(dir hw.MotorDirection) int {
-	if dir == hw.MD_Up {
-		return 0
-	}
-	return 1
 }

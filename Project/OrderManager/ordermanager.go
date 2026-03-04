@@ -1,10 +1,11 @@
 package ordermanager
 
 import (
+	hw "Driver-go/elevio"
 	"time"
+
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 	_ "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
-	hw "Driver-go/elevio"
 )
 
 //Motordirectoion Up = 1, Down = -1, idle = 0
@@ -17,7 +18,7 @@ func OrderManagerInit(localNodeID string, initialCabRequests [def.NumFloors]def.
 			{
 				ID:          localNodeID,
 				CabRequests: initialCabRequests,
-				Elevator:   def.Elevator{},
+				Elevator:    def.Elevator{},
 			},
 		},
 		HallRequests: [def.NumFloors][2]def.OrderState{},
@@ -58,7 +59,7 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList *def.AliveList) bool {
 		for dir := 0; dir < 2; dir++ {
 			order := def.OrderMessage{Floor: floor, Direction: ToMotorDirection(dir)}
 			local := localWv.HallRequests[floor][dir]
-			newState := mergeHallState(local, peerWv.HallRequests[order.Floor][order.Direction], order,  aliveList)
+			newState := mergeHallState(local, peerWv.HallRequests[floor][dir], order, aliveList)
 			if newState != local {
 				localWv.HallRequests[floor][dir] = newState
 				if newState == def.Acknowledged {
@@ -154,26 +155,34 @@ func allAliveHallAtOrAbove(ordermsg def.OrderMessage, threshold def.OrderState, 
 		if !alive {
 			continue
 		}
-		if localWv.HallRequests[ordermsg.Floor][ordermsg.Direction] < threshold {
+		if localWv.HallRequests[ordermsg.Floor][ToIntHelper(ordermsg.Direction)] < threshold {
 			return false
 		}
 	}
 	return true
 }
 
-//Helpers
+// Helpers
 func SetHallCall(ordermsg def.OrderMessage, state def.OrderState) {
-	localWv.HallRequests[ordermsg.Floor][ordermsg.Direction] = state
+	localWv.HallRequests[ordermsg.Floor][ToIntHelper(ordermsg.Direction)] = state
 }
 
 func SetCabCall(ordermsg def.OrderMessage, state def.OrderState) {
 	localWv.Nodes[0].CabRequests[ordermsg.Floor] = state
 }
 
-func ToMotorDirection(i int) hw.MotorDirection{
-	if i == 0{
+func ToMotorDirection(i int) hw.MotorDirection {
+	if i == 0 {
 		return hw.MD_Up
-	}else{
+	} else {
 		return hw.MD_Down
+	}
+}
+
+func ToIntHelper(md hw.MotorDirection) int {
+	if md == hw.MD_Up {
+		return 0
+	} else {
+		return 1
 	}
 }

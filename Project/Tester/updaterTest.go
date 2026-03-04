@@ -47,14 +47,14 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
 	peerWvCh <- def.Worldview{
 		Nodes: []def.Node{{
 			ID:          peerID,
-			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.Exist, def.NoCall, def.Exist},
+			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.Exist, def.NoCall, def.NoCall},
 			Elevator:    def.Elevator{CurrentFloor: 0},
 		}},
 		HallRequests: [def.NumFloors][2]def.OrderState{
-			{def.NoCall, def.Exist},
 			{def.NoCall, def.NoCall},
-			{def.NoCall, def.Exist},
-			{def.Exist, def.NoCall},
+			{def.NoCall, def.NoCall},
+			{def.NoCall, def.NoCall},
+			{def.NoCall, def.NoCall},
 		},
 	}
 	time.Sleep(2 * time.Second)
@@ -63,7 +63,7 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
 	peerWvCh <- def.Worldview{
 		Nodes: []def.Node{{
 			ID:          peerID,
-			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.Exist, def.NoCall, def.Exist},
+			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.NoCall, def.NoCall, def.NoCall},
 			Elevator:    def.Elevator{CurrentFloor: 0},
 		}},
 		HallRequests: [def.NumFloors][2]def.OrderState{
@@ -79,14 +79,14 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
 	peerWvCh <- def.Worldview{
 		Nodes: []def.Node{{
 			ID:          peerID,
-			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.Complete, def.NoCall, def.Complete},
+			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.NoCall, def.NoCall, def.NoCall},
 			Elevator:    def.Elevator{CurrentFloor: 2},
 		}},
 		HallRequests: [def.NumFloors][2]def.OrderState{
-			{def.NoCall, def.Complete},
 			{def.NoCall, def.NoCall},
-			{def.NoCall, def.Complete},
-			{def.Complete, def.NoCall},
+			{def.NoCall, def.NoCall},
+			{def.NoCall, def.NoCall},
+			{def.NoCall, def.NoCall},
 		},
 	}
 }

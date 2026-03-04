@@ -1,4 +1,4 @@
-package Orderhandler
+package orderassigner
 
 import (
 	"fmt"
@@ -67,7 +67,7 @@ func TestRunHRA(t *testing.T) {
 
 	// 1. All elevators in worldview should have an entry in output
 	for _, node := range wv.Nodes {
-		if _, exists := output[node.ID]; !exists {
+		if _, exists := output[string(node.ID)]; !exists {
 			t.Errorf("Expected output to contain elevator ID %s, but it was missing", node.ID)
 		}
 	}
@@ -75,7 +75,7 @@ func TestRunHRA(t *testing.T) {
 	// 2. Output should not contain IDs not in worldview
 	nodeIDs := make(map[string]bool)
 	for _, node := range wv.Nodes {
-		nodeIDs[node.ID] = true
+		nodeIDs[string(node.ID)] = true
 	}
 	for id := range output {
 		if !nodeIDs[id] {
@@ -106,7 +106,7 @@ func TestRunHRA(t *testing.T) {
 	for _, node := range wv.Nodes {
 		for floor := 0; floor < def.NumFloors; floor++ {
 			if node.CabRequests[floor] == def.Acknowledged {
-				orders, exists := output[node.ID]
+				orders, exists := output[string(node.ID)]
 				if !exists {
 					t.Errorf("Elevator %s missing from output", node.ID)
 					continue

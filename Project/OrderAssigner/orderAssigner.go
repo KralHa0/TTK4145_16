@@ -1,4 +1,4 @@
-package Orderhandler
+package orderassigner
 
 import (
 	"Driver-go/elevio"
@@ -149,7 +149,7 @@ func insertCabCallsIntoOutput(output map[string][][2]bool, wv def.Worldview) {
 
 	for outputId, orderList := range output { //iterate over all keys
 		for _, inputNode := range wv.Nodes {
-			inputNodeId := inputNode.ID
+			inputNodeId := string(inputNode.ID)
 			if outputId == inputNodeId {
 				for floor := range len(orderList) {
 					if inputNode.CabRequests[floor] == def.Acknowledged {
@@ -191,7 +191,7 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 			}
 		}
 
-		States[node.ID] = ORAElevState{
+		States[string(node.ID)] = ORAElevState{
 			ElevState:   stateToString(node.Elevator.ElevState),
 			Floor:       node.Elevator.CurrentFloor,
 			Direction:   directionToString(node.Elevator.Direction),

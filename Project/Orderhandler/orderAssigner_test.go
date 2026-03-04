@@ -57,7 +57,76 @@ func TestRunHRA(t *testing.T) {
 	output := <-hraOutputCh
 	fmt.Println("HRA output:")
 	for id, orders := range output {
+
 		/*make acceptance test. cross reference hall/cabcalls to output*/
 		fmt.Printf("  %s: %v\n", id, orders)
 	}
+
+	// --- Acceptance tests ---
+
+	// 1. All elevators in worldview should have an entry in output
+	for _, node := range wv.Nodes {
+		if _, exists := output[node.ID]; !exists {
+			t.Errorf("Expected output to contain elevator ID %s, but it was missing", node.ID)
+		}
+	}
+
+	// 2. Output should not contain IDs not in worldview
+	nodeIDs := make(map[string]bool)
+	for _, node := range wv.Nodes {
+		nodeIDs[node.ID] = true
+	}
+	for id := range output {
+		if !nodeIDs[id] {
+			t.Errorf("Output contains unknown elevator ID: %s", id)
+		}
+	}
+
+	// 3. Hall requests with Acknowledged/Exist should be assigned to at least one elevator
+	for floor := 0; floor < def.NumFloors; floor++ {
+		for btn := 0; btn < 2; btn++ {
+			state := wv.HallRequests[floor][btn]
+			if state == def.Acknowledged {
+				assigned := false
+				for _, orders := range output {
+					if orders[floor][btn] {
+						assigned = true
+						break
+					}
+				}
+				if !assigned {
+					t.Errorf("Hall request at floor %d btn %d (state %v) was not assigned to any elevator", floor, btn, state)
+				}
+			}
+		}
+	}
+
+	// 4. Cab requests with Acknowledged should be assigned to the correct elevator
+	for _, node := range wv.Nodes {
+		for floor := 0; floor < def.NumFloors; floor++ {
+			if node.CabRequests[floor] == def.Acknowledged {
+				orders, exists := output[node.ID]
+				if !exists {
+					t.Errorf("Elevator %s missing from output", node.ID)
+					continue
+				}
+				if !orders[floor][0] && !orders[floor][1] {
+					t.Errorf("Cab request for elevator %s at floor %d was not reflected in output", node.ID, floor)
+				}
+			}
+		}
+	}
+	/*
+		// 5. Hall requests with NoCall should not be assigned
+		for floor := 0; floor < def.NumFloors; floor++ {
+			for btn := 0; btn < 2; btn++ {
+				if wv.HallRequests[floor][btn] == def.NoCall {
+					for id, orders := range output {
+						if orders[floor][btn] {
+							t.Errorf("Hall request at floor %d btn %d is NoCall but was assigned to elevator %s", floor, btn, id)
+						}
+					}
+				}
+			}
+		}*/
 }

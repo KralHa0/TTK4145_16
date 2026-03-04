@@ -127,7 +127,7 @@ func makeExecutableInput(input ORAInput) ([]byte, error) {
 
 func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
 	// use o.executable instead of re-detecting OS each call
-	ret, err := exec.Command("../Orderhandler/"+o.executable, "-i", string(jsonBytes)).CombinedOutput()
+	ret, err := exec.Command("../OrderAssigner/"+o.executable, "-i", string(jsonBytes)).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("exec.Command error: %w, output: %s", err, string(ret))
 	}

@@ -3,6 +3,7 @@ package tester
 import (
 	"fmt"
 	"time"
+
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 	om "github.com/KralHa0/TTK4145_16/Project/OrderManager"
@@ -16,9 +17,9 @@ func RunOMTest() {
 
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
 
-	peerWvCh         := make(chan def.Worldview)
-	smUpdateCh       := make(chan om.SMUpdate)
-	networkWvCh      := make(chan def.Worldview, 10)
+	peerWvCh := make(chan def.Worldview)
+	orderManagerCh := make(chan def.OrderMessage)
+	networkWvCh := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
 
 	peerID := "192.168.1.100"
@@ -29,11 +30,11 @@ func RunOMTest() {
 		},
 	}
 
-	go om.UpdaterRun(peerWvCh, smUpdateCh, networkWvCh, orderHandlerWvCh, aliveList)
+	go om.UpdaterRun(peerWvCh, orderManagerCh, networkWvCh, orderHandlerWvCh, aliveList)
 	go listenOrderHandler(orderHandlerWvCh)
 	go drainNetwork(networkWvCh)
 	go simulatePeerWorldviews(peerWvCh, peerID)
-	go simulateSMCompletions(smUpdateCh)
+	go simulateSMCompletions(orderManagerCh)
 	go printFinalWorldview()
 
 	select {}
@@ -47,7 +48,7 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
 		Nodes: []def.Node{{
 			ID:          peerID,
 			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.Exist, def.NoCall, def.Exist},
-			ElevState:   def.ElevState{Floor: 0},
+			Elevator:    def.Elevator{CurrentFloor: 0},
 		}},
 		HallRequests: [def.NumFloors][2]def.OrderState{
 			{def.NoCall, def.Exist},
@@ -63,7 +64,7 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
 		Nodes: []def.Node{{
 			ID:          peerID,
 			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.Exist, def.NoCall, def.Exist},
-			ElevState:   def.ElevState{Floor: 0},
+			Elevator:    def.Elevator{CurrentFloor: 0},
 		}},
 		HallRequests: [def.NumFloors][2]def.OrderState{
 			{def.NoCall, def.Exist},
@@ -79,7 +80,7 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
 		Nodes: []def.Node{{
 			ID:          peerID,
 			CabRequests: [def.NumFloors]def.OrderState{def.NoCall, def.Complete, def.NoCall, def.Complete},
-			ElevState:   def.ElevState{Floor: 2},
+			Elevator:    def.Elevator{CurrentFloor: 2},
 		}},
 		HallRequests: [def.NumFloors][2]def.OrderState{
 			{def.NoCall, def.Complete},
@@ -90,11 +91,11 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID string) {
 	}
 }
 
-func simulateSMCompletions(smUpdateCh chan<- om.SMUpdate) {
+func simulateSMCompletions(orderManagerCh chan<- def.OrderMessage) {
 	time.Sleep(4 * time.Second)
 	for _, floor := range []int{0, 1, 2, 3} {
 		fmt.Printf("\n[SM SIM] Signaling completion at floor %d\n", floor)
-		smUpdateCh <- om.SMUpdate{Floor: floor, Direction: 1}
+		orderManagerCh <- def.OrderMessage{Floor: floor, Direction: 1}
 		time.Sleep(500 * time.Millisecond)
 	}
 }

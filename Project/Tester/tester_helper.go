@@ -33,9 +33,10 @@ func printWorldview(wv def.Worldview) {
 		fmt.Printf("  Node %s:\n", node.ID)
 		fmt.Printf("    CabRequests: %v\n", node.CabRequests)
 		fmt.Printf("    ElevState: Floor=%d Behavior=%d Malfunctioned=%v\n",
-			node.ElevState.Floor,
-			node.ElevState.Behavior,
-			node.ElevState.Malfunctioned,
+			node.Elevator.CurrentFloor,
+			node.Elevator.Direction,
+			node.Elevator.ElevState,
+			node.Elevator.Malfunctioned,
 		)
 	}
 }

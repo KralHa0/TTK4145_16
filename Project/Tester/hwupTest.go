@@ -22,7 +22,7 @@ func RunTest() {
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
 
 	peerWvCh := make(chan def.Worldview, 10)
-	smUpdateCh := make(chan om.SMUpdate)
+	orderMsgCh := make(chan def.OrderMessage)
 	networkWvCh := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
 	peerUpdateCh := make(chan peers.PeerUpdate, 10)
@@ -37,7 +37,7 @@ func RunTest() {
 		}
 	}()
 
-	go om.UpdaterRun(peerWvCh, smUpdateCh, networkWvCh, orderHandlerWvCh, nw.GetAliveList())
+	go om.UpdaterRun(peerWvCh, orderMsgCh, networkWvCh, orderHandlerWvCh, nw.GetAliveList())
 
 	go func() {
 		for wv := range networkWvCh {
@@ -48,7 +48,7 @@ func RunTest() {
 	go listenOrderHandler(orderHandlerWvCh)
 
 	printControls()
-	handleKeyboard(smUpdateCh)
+	handleKeyboard(orderMsgCh)
 }
 
 func printControls() {
@@ -61,7 +61,7 @@ func printControls() {
 	fmt.Println("-------------------------")
 }
 
-func handleKeyboard(smUpdateCh chan<- om.SMUpdate) {
+func handleKeyboard(orderMsgCh chan<- def.OrderMessage) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		parts := strings.Fields(scanner.Text())
@@ -74,13 +74,13 @@ func handleKeyboard(smUpdateCh chan<- om.SMUpdate) {
 				fmt.Println("Usage: h <floor> <dir>")
 				continue
 			}
-			floor, dir := atoi(parts[1]), atoi(parts[2])
-			if !validFloor(floor) || (dir != 0 && dir != 1) {
+			order := def.OrderMessage{Floor: atoi(parts[1]), Direction: om.ToMotorDirection(atoi(parts[2]))}
+			if !validFloor(order.Floor) || (order.Direction != 1 && order.Direction != -1) {
 				fmt.Println("Invalid floor or direction")
 				continue
 			}
-			om.SetHallCall(floor, dir, def.Exist)
-			fmt.Printf("[KEY] Hall call set to Exist: floor %d dir %d\n", floor, dir)
+			om.SetHallCall(order, def.Exist)
+			fmt.Printf("[KEY] Hall call set to Exist: floor %d dir %d\n", order.Floor, order.Direction)
 
 		case "c":
 			if len(parts) < 2 {
@@ -92,7 +92,7 @@ func handleKeyboard(smUpdateCh chan<- om.SMUpdate) {
 				fmt.Println("Invalid floor")
 				continue
 			}
-			om.SetCabCall(floor, def.Exist)
+			om.SetCabCall(def.OrderMessage{Floor: floor, Direction: 0}, def.Exist)
 			fmt.Printf("[KEY] Cab call set to Exist: floor %d\n", floor)
 
 		case "s":
@@ -100,13 +100,13 @@ func handleKeyboard(smUpdateCh chan<- om.SMUpdate) {
 				fmt.Println("Usage: s <floor> <dir>")
 				continue
 			}
-			floor, dir := atoi(parts[1]), atoi(parts[2])
-			if !validFloor(floor) || (dir != 0 && dir != 1) {
+			order := def.OrderMessage{Floor: atoi(parts[1]), Direction: om.ToMotorDirection(atoi(parts[2]))}
+			if !validFloor(order.Floor) || (order.Direction != 1 && order.Direction != -1) {
 				fmt.Println("Invalid floor or direction")
 				continue
 			}
-			smUpdateCh <- om.SMUpdate{Floor: floor, Direction: dir}
-			fmt.Printf("[KEY] SM completion signaled: floor %d dir %d\n", floor, dir)
+			orderMsgCh <- order
+			fmt.Printf("[KEY] SM completion signaled: floor %d dir %d\n", order.Floor, order.Direction)
 
 		case "p":
 			printWorldview(om.GetLocalWv())

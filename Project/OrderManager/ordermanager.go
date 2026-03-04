@@ -4,12 +4,10 @@ import (
 	"time"
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 	_ "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
+	hw "Driver-go/elevio"
 )
 
-type SMUpdate struct {
-	Floor     int
-	Direction int // 0 = down, 1 = up
-}
+//Motordirectoion Up = 1, Down = -1, idle = 0
 
 var localWv def.Worldview
 
@@ -28,7 +26,7 @@ func OrderManagerInit(localNodeID string, initialCabRequests [def.NumFloors]def.
 
 func UpdaterRun(
 	peerWvCh <-chan def.Worldview,
-	smUpdateCh <-chan SMUpdate,
+	orderMsgCh <-chan def.OrderMessage,
 	networkWvCh chan<- def.Worldview,
 	orderHandlerWvCh chan<- def.Worldview,
 	aliveList *def.AliveList,
@@ -47,7 +45,7 @@ func UpdaterRun(
 				orderHandlerWvCh <- localWv
 			}
 
-		case sm := <-smUpdateCh:
+		case sm := <-orderMsgCh:
 			applyCompletion(sm.Floor)
 		}
 	}
@@ -58,8 +56,9 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList *def.AliveList) bool {
 
 	for floor := 0; floor < def.NumFloors; floor++ {
 		for dir := 0; dir < 2; dir++ {
+			order := def.OrderMessage{Floor: floor, Direction: ToMotorDirection(dir)}
 			local := localWv.HallRequests[floor][dir]
-			newState := mergeHallState(local, peerWv.HallRequests[floor][dir], floor, dir, aliveList)
+			newState := mergeHallState(local, peerWv.HallRequests[order.Floor][order.Direction], order,  aliveList)
 			if newState != local {
 				localWv.HallRequests[floor][dir] = newState
 				if newState == def.Acknowledged {
@@ -104,12 +103,12 @@ func GetLocalWv() def.Worldview {
 	return localWv
 }
 
-func mergeHallState(local, peer def.OrderState, floor, dir int, aliveList *def.AliveList) def.OrderState {
+func mergeHallState(local, peer def.OrderState, ordermsg def.OrderMessage, aliveList *def.AliveList) def.OrderState {
 	if local == def.NoCall && peer >= def.Exist {
 		return def.Exist
 	}
 	if local == def.Exist {
-		if allAliveHallAtOrAbove(floor, dir, def.Exist, aliveList) {
+		if allAliveHallAtOrAbove(ordermsg, def.Exist, aliveList) {
 			return def.Acknowledged
 		}
 	}
@@ -117,7 +116,7 @@ func mergeHallState(local, peer def.OrderState, floor, dir int, aliveList *def.A
 		return def.Complete
 	}
 	if local == def.Complete {
-		if allAliveHallAtOrAbove(floor, dir, def.Complete, aliveList) || peer == def.NoCall {
+		if allAliveHallAtOrAbove(ordermsg, def.Complete, aliveList) || peer == def.NoCall {
 			return def.NoCall
 		}
 	}
@@ -150,12 +149,12 @@ func applyCompletion(floor int) {
 
 // allAliveHallAtOrAbove checks if all alive nodes have reported the hall cell at or above threshold.
 // Since hall requests are global, we use localWv.HallRequests which reflects the merged state.
-func allAliveHallAtOrAbove(floor, dir int, threshold def.OrderState, aliveList *def.AliveList) bool {
+func allAliveHallAtOrAbove(ordermsg def.OrderMessage, threshold def.OrderState, aliveList *def.AliveList) bool {
 	for _, alive := range aliveList.Peers {
 		if !alive {
 			continue
 		}
-		if localWv.HallRequests[floor][dir] < threshold {
+		if localWv.HallRequests[ordermsg.Floor][ordermsg.Direction] < threshold {
 			return false
 		}
 	}
@@ -163,10 +162,18 @@ func allAliveHallAtOrAbove(floor, dir int, threshold def.OrderState, aliveList *
 }
 
 //Helpers
-func SetHallCall(floor, dir int, state def.OrderState) {
-	localWv.HallRequests[floor][dir] = state
+func SetHallCall(ordermsg def.OrderMessage, state def.OrderState) {
+	localWv.HallRequests[ordermsg.Floor][ordermsg.Direction] = state
 }
 
-func SetCabCall(floor int, state def.OrderState) {
-	localWv.Nodes[0].CabRequests[floor] = state
+func SetCabCall(ordermsg def.OrderMessage, state def.OrderState) {
+	localWv.Nodes[0].CabRequests[ordermsg.Floor] = state
+}
+
+func ToMotorDirection(i int) hw.MotorDirection{
+	if i == 0{
+		return hw.MD_Up
+	}else{
+		return hw.MD_Down
+	}
 }

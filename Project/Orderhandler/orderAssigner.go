@@ -10,7 +10,7 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-/*TODO: assigner does not take cab request
+/*
 
 TODO: Generalize toBool functionality for both hall and cab calls*/
 
@@ -67,7 +67,7 @@ func stateToString(s def.PossibleStates) string {
 func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool {
 	boolRequests := make([][2]bool, def.NumFloors)
 	for floor := 0; floor < def.NumFloors; floor++ {
-		for dir := 0; dir <= 1; dir++ {
+		for dir := 0; dir < 2; dir++ {
 			if hallRequests[floor][dir] == def.Acknowledged {
 				boolRequests[floor][dir] = true
 			} else {
@@ -139,6 +139,22 @@ func runHRAExecutable(jsonBytes []byte) ([]byte, error) {
 	return ret, nil
 }
 
+func insertCabCallsIntoOutput(output map[string][][2]bool, wv def.Worldview) {
+
+	for outputId, orderList := range output { //iterate over all keys
+		for _, inputNode := range wv.Nodes {
+			inputNodeId := inputNode.ID
+			if outputId == inputNodeId {
+				for floor := range len(orderList) {
+					if inputNode.CabRequests[floor] == def.Acknowledged {
+						output[outputId][floor] = [2]bool{true, true}
+					}
+				}
+			}
+		}
+	}
+}
+
 func unmarshalOutput(ret []byte) (map[string][][2]bool, error) {
 	output := new(map[string][][2]bool)
 	err := json.Unmarshal(ret, output)
@@ -170,18 +186,26 @@ func runHRA(
 			fmt.Println("Error marshaling input: ", err)
 			continue
 		}
+
+		fmt.Println("JSON being sent to executable:")
+		fmt.Println(string(jsonBytes))
+
 		ret, err := runHRAExecutable(jsonBytes)
 		if err != nil {
 			fmt.Println("Error running HRA executable: ", err)
 			continue
 		}
+
 		output, err := unmarshalOutput(ret)
 		if err != nil {
 			fmt.Println("Error unmarshaling output: ", err)
 			continue
 		}
-		fmt.Println("No errors during execution")
 
+		insertCabCallsIntoOutput(output, wv)
+
+		fmt.Println("No errors during execution")
+		//fmt.Println(output)
 		hraOutputCh <- output
 	}
 }

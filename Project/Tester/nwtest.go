@@ -1,37 +1,31 @@
 package tester
 
 import (
+	"Driver-go/elevio"
+	"Network-go/network/peers"
 	"fmt"
 	"time"
 
-	"Network-go/network/peers"
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
-	networkhandler "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
+	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 )
 
 func RunNwTest() {
 	fmt.Println("=== Network Test ===")
-
-	id := networkhandler.CheckIP()
+	id := nw.GetIp()
 	fmt.Println("Local ID:", id)
-
-	networkhandler.NetworkInit()
-
+	nw.NetworkInit()
 	localWorldviewCh := make(chan def.Worldview)
 	peerWorldviewCh := make(chan def.Worldview)
 	peerUpdateCh := make(chan peers.PeerUpdate)
-
-	go networkhandler.NetworkRun(localWorldviewCh, peerWorldviewCh, peerUpdateCh)
-
+	go nw.NetworkRun(localWorldviewCh, peerWorldviewCh, peerUpdateCh)
 	go testPeerDiscovery(peerUpdateCh)
 	go testSendWorldview(localWorldviewCh, id)
 	go testReceiveWorldview(peerWorldviewCh, id)
 	go testDisconnectReconnect()
-
 	select {}
 }
 
-// test 1: peer discovery
 func testPeerDiscovery(peerUpdateCh <-chan peers.PeerUpdate) {
 	fmt.Println("\n--- Test: Peer Discovery ---")
 	for update := range peerUpdateCh {
@@ -41,11 +35,11 @@ func testPeerDiscovery(peerUpdateCh <-chan peers.PeerUpdate) {
 		for _, lost := range update.Lost {
 			fmt.Println("[PEER] Lost peer:", lost)
 		}
-		fmt.Println("[PEER] Active peers:", update.Peers)
+		nw.UpdateAliveList(update)
+		printAliveList(nw.GetAliveList())
 	}
 }
 
-// test 2: send worldview
 func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 	fmt.Println("\n--- Test: Sending Worldview ---")
 	floor := 0
@@ -55,25 +49,26 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 				{
 					ID: id,
 					CabRequests: [def.NumFloors]def.OrderState{
-						def.Available, def.NoCall, def.Taken, def.NoCall,
+						def.Exist, def.NoCall, def.Acknowledged, def.NoCall,
 					},
-					ElevState: def.ElevState{
-						Floor:         floor,
-						Behavior:      def.Moving,
+					Elevator: def.Elevator{
+						CurrentFloor:  floor,
+						Direction:     elevio.MD_Up,
+						ElevState:     def.Moving,
 						Malfunctioned: false,
 					},
 				},
 			},
 			HallRequests: [def.NumFloors][2]def.OrderState{
-				{def.Available, def.NoCall},
+				{def.Exist, def.NoCall},
 				{def.NoCall, def.NoCall},
-				{def.Taken, def.NoCall},
-				{def.NoCall, def.Available},
+				{def.Acknowledged, def.NoCall},
+				{def.NoCall, def.Exist},
 			},
 		}
 		localWorldviewCh <- wv
 		fmt.Printf("[SEND] Floor: %d | CabCalls: %v | HallCalls: %v\n",
-			wv.Nodes[0].ElevState.Floor,
+			wv.Nodes[0].Elevator.CurrentFloor,
 			wv.Nodes[0].CabRequests,
 			wv.HallRequests,
 		)
@@ -82,38 +77,33 @@ func testSendWorldview(localWorldviewCh chan<- def.Worldview, id string) {
 	}
 }
 
-// test 3: receive worldview
 func testReceiveWorldview(peerWorldviewCh <-chan def.Worldview, id string) {
 	fmt.Println("\n--- Test: Receiving Worldview ---")
 	for wv := range peerWorldviewCh {
 		if len(wv.Nodes) == 0 {
 			continue
 		}
-		// ignore own broadcasts
 		if wv.Nodes[0].ID == id {
 			continue
 		}
-		fmt.Printf("[RECV] From: %s | Floor: %d | Behavior: %d | Malfunctioned: %v\n",
+		fmt.Printf("[RECV] From: %s | Floor: %d | Direction: %d | Behavior: %d | Malfunctioned: %v\n",
 			wv.Nodes[0].ID,
-			wv.Nodes[0].ElevState.Floor,
-			wv.Nodes[0].ElevState.Behavior,
-			wv.Nodes[0].ElevState.Malfunctioned,
+			wv.Nodes[0].Elevator.CurrentFloor,
+			wv.Nodes[0].Elevator.Direction,
+			wv.Nodes[0].Elevator.ElevState,
+			wv.Nodes[0].Elevator.Malfunctioned,
 		)
 		fmt.Printf("       CabCalls: %v\n", wv.Nodes[0].CabRequests)
 		fmt.Printf("       HallCalls: %v\n", wv.HallRequests)
 	}
 }
 
-// test 4: disconnect and reconnect
 func testDisconnectReconnect() {
 	fmt.Println("\n--- Test: Disconnect/Reconnect ---")
 	time.Sleep(10 * time.Second)
-
-	fmt.Println("[DISC] Disabling transmit - peers should detect loss after 500ms")
-	networkhandler.DisableTransmit()
-
+	fmt.Println("[DISC] Disabling transmit")
+	nw.DisableTransmit()
 	time.Sleep(5 * time.Second)
-
-	fmt.Println("[DISC] Re-enabling transmit - peers should detect reconnect")
-	networkhandler.EnableTransmit()
+	fmt.Println("[DISC] Re-enabling transmit")
+	nw.EnableTransmit()
 }

@@ -6,42 +6,71 @@ import (
 )
 
 const (
-	NumFloors = 4
-	MsgFrq    = 15 * time.Millisecond
+	NumFloors     = 4
+	NumButtons    = 3
+	BetweenFloors = -1 //a floor-value used under init.
+	GroundFloor   = 0
+	MsgFrq        = 100 * time.Millisecond
+	Addr          = "localhost"
+	Port          = 15657
+
+	DoorOpenTimeout = 3000 * time.Millisecond // door should be open for 3 seconds, then close
+	WatchdogTimeout = 5000 * time.Millisecond
 )
 
-type Behavior int
+type CallType int
 
 const (
-	Idle Behavior = iota
-	Moving
+	Hallcall CallType = iota
+	Cabcall
+)
+
+type NewOrderMessage struct {
+	Floor     int
+	Direction elevio.MotorDirection
+	CallType  CallType
+}
+
+type PossibleStates int
+
+const (
+	Moving PossibleStates = iota
+	Idle
 	DoorOpen
 )
+
+type OrderMessage struct {
+	Floor     int
+	Direction elevio.MotorDirection
+}
 
 type OrderState uint8
 
 const (
 	NoCall       OrderState = 0
-	Available    OrderState = 1
-	Taken        OrderState = 2
+	Exist        OrderState = 1
+	Acknowledged OrderState = 2
 	Complete     OrderState = 3
-	Acknowledged OrderState = 4
 )
 
-type ElevState struct {
-	Floor         int
+type Elevator struct {
+	CurrentFloor  int
 	Direction     elevio.MotorDirection
-	Behavior      Behavior
+	ElevState     PossibleStates
 	Malfunctioned bool
 }
 
 type Node struct {
 	ID          string
 	CabRequests [NumFloors]OrderState
-	ElevState   ElevState
+	Elevator    Elevator
 }
 
 type Worldview struct {
 	Nodes        []Node
 	HallRequests [NumFloors][2]OrderState
+}
+
+type AliveList struct {
+	Peers map[string]bool //Map of peer IDs to their alive status
 }

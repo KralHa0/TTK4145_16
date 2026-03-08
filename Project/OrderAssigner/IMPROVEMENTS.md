@@ -33,7 +33,7 @@ func Run(wvCh <-chan def.Worldview, outputCh chan<- def.AssignedOrders, ownID de
 }
 ```
 
-### 4. Constructor parameter type mismatch
+### 4. Constructor parameter type mismatch ✅
 **File:** `orderAssigner.go:45`
 
 `NewOrderAssigner` still takes `chan<- map[string][][2]bool` but the struct field is now
@@ -41,7 +41,7 @@ func Run(wvCh <-chan def.Worldview, outputCh chan<- def.AssignedOrders, ownID de
 
 **Fix:** Update the constructor parameter to `chan<- def.AssignedOrders`.
 
-### 5. `Run()` method body sends wrong type
+### 5. `Run()` method body sends wrong type ✅
 **File:** `orderAssigner.go:117`
 
 `o.outputCh <- output` tries to send a `map[string][][2]bool` to a `chan<- def.AssignedOrders`.
@@ -65,9 +65,9 @@ o.outputCh <- assigned
 
 ---
 
-## Fault Tolerance
+## Fault Tolerance 
 
-### 6. No timeout on `exec.Command`
+### 6. No timeout on `exec.Command`✅
 **File:** `orderAssigner.go:143` — **Priority: High**
 
 If `hall_request_assigner` hangs, `Run()` blocks forever and the FSM receives no orders.
@@ -181,9 +181,9 @@ log.Printf("OrderAssigner: error: %v", err)
 | 1 | `insertCabCallsIntoOutput` design — document convention | Low | Open |
 | 2 | Variable shadowing in `worldviewToORAInput` | Medium | Done |
 | 3 | Package-level `Run()` missing | Critical | Open |
-| 4 | Constructor parameter type mismatch | Critical | Open |
-| 5 | `Run()` body sends wrong type | Critical | Open |
-| 6 | No timeout on `exec.Command` | High | Open |
+| 4 | Constructor parameter type mismatch | Critical | Done |
+| 5 | `Run()` body sends wrong type | Critical | Done |
+| 6 | No timeout on `exec.Command` | High | Done |
 | 7 | No panic recovery in goroutine | High | Open |
 | 8 | Buffer drain not implemented | High | Open |
 | 9 | No empty worldview guard | Medium | Open |

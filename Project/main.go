@@ -98,14 +98,17 @@ func runFullSystem() {
 
 	// OrderAssigner: runs cost function on acknowledged worldview,
 	// produces per-elevator order assignment for FSM
+
+	orderAssigner := oa.NewOrderAssigner(localID, omToOraCh, oaToFsmCh)
+	go orderAssigner.Run()
+	
+	/*
 	go oa.Run(
 		omToOraCh,
 		oaToFsmCh,
 		localID,
 	)
-	/*^ Du må kjøre konstruktøren til orderAssigner først, også kjøre oa.Run():
-	orderAssigner := oa.NewOrderAssigner(localID, omToOraCh, oaToFsmCh)
-	go orderAssigner.Run()
+	^ Du må kjøre konstruktøren til orderAssigner først, også kjøre oa.Run():
 	*/
 
 	// FSM: drives hardware, reports new orders and completions to OM

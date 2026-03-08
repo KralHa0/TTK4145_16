@@ -2,10 +2,12 @@ package orderassigner
 
 import (
 	"Driver-go/elevio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"runtime"
+	"time"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
@@ -14,6 +16,9 @@ import (
 type IOrderAssigner interface {
 	Run()
 }
+
+// Constants
+const oraTimeout = 2 * time.Second
 
 // Type Struct:
 type OrderAssigner struct {
@@ -69,6 +74,8 @@ Public met: Run the cost function, is called once to initilize
 			TODO:
 			- add timeout
 			- panic recovery
+				implemented, but need to restart the gorutine
+				how do we do that, from main, or in the Run func
 
 			- buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
 			- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
@@ -85,41 +92,60 @@ Public met: Run the cost function, is called once to initilize
 	  - check that wv is not empty, and that make ORAstateMap is not empty
 */
 func (o *OrderAssigner) Run() {
-	for wv := range o.wvCh {
-		fmt.Println("Received new worldview, running cost function...")
+	for {
+		closedNormaly := false
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Printf("OrderAssigner: panic recovered: %v\n", r)
+				}
+			}()
 
-		input := o.worldviewToORAInput(wv)
+			//main goroutine loop
+			for wv := range o.wvCh {
+				fmt.Println("Received new worldview, running cost function...")
 
-		jsonBytes, err := makeExecutableInput(input)
-		if err != nil {
-			fmt.Println("Error marshaling input: ", err)
-			continue
+				input := o.worldviewToORAInput(wv)
+
+				jsonBytes, err := makeExecutableInput(input)
+				if err != nil {
+					fmt.Println("Error marshaling input: ", err)
+					continue
+				}
+
+				fmt.Println("JSON being sent to executable:")
+				fmt.Println(string(jsonBytes))
+
+				costFuncResult, err := o.runORAExecutable(jsonBytes)
+				if err != nil {
+					fmt.Println("Error running ORA executable: ", err)
+					continue
+				}
+
+				output, err := makeResult(costFuncResult)
+				if err != nil {
+					fmt.Println("Error unmarshaling output: ", err)
+					continue
+				}
+
+				insertCabCallsIntoOutput(output[o.ownID], wv, o.ownID)
+
+				fmt.Println("No errors during execution")
+				var assigned def.AssignedOrders
+				copy(assigned[:], output[o.ownID])
+				o.outputCh <- assigned
+			}
+			closedNormaly = true // only reached if channel closed normally
+		}()
+
+		if closedNormaly {
+			fmt.Println("OrderAssigner: input channel closed, stopping")
+			return
 		}
 
-		fmt.Println("JSON being sent to executable:")
-		fmt.Println(string(jsonBytes))
-
-		costFuncResult, err := o.runORAExecutable(jsonBytes)
-		if err != nil {
-			fmt.Println("Error running ORA executable: ", err)
-			continue
-		}
-
-		output, err := makeResult(costFuncResult)
-		if err != nil {
-			fmt.Println("Error unmarshaling output: ", err)
-			continue
-		}
-
-		insertCabCallsIntoOutput(output[o.ownID], wv, o.ownID)
-
-		fmt.Println("No errors during execution")
-		var assigned def.AssignedOrders
-		copy(assigned[:], output[o.ownID])
-		o.outputCh <- assigned
+		fmt.Println("OrderAssigner: restarting after panic...")
 	}
 }
-
 
 //----------
 //Called directly from Run
@@ -144,8 +170,11 @@ func makeExecutableInput(input ORAInput) ([]byte, error) {
 }
 
 func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), oraTimeout)
+	defer cancel()
 	// use o.executable instead of re-detecting OS each call
-	ret, err := exec.Command("../OrderAssigner/"+o.executable, "-i", string(jsonBytes)).CombinedOutput()
+	ret, err := exec.CommandContext(ctx, "../OrderAssigner/"+o.executable, "-i", string(jsonBytes)).CombinedOutput()
+
 	if err != nil {
 		return nil, fmt.Errorf("exec.Command error: %w, output: %s", err, string(ret))
 	}
@@ -164,18 +193,17 @@ func makeResult(ret []byte) (map[def.NodeID][][2]bool, error) {
 
 // make subfunc of unmarshal thing
 func insertCabCallsIntoOutput(myOutPut [][2]bool, wv def.Worldview, ID def.NodeID) {
-    for _, node := range wv.Nodes {
-        if node.ID == ID {
-            for floor := 0; floor < def.NumFloors; floor++ {
-                if node.CabRequests[floor] == def.Acknowledged {
-                    myOutPut[floor] = [2]bool{true, true}
-                }
-            }
-            return
-        }
-    }
+	for _, node := range wv.Nodes {
+		if node.ID == ID {
+			for floor := 0; floor < def.NumFloors; floor++ {
+				if node.CabRequests[floor] == def.Acknowledged {
+					myOutPut[floor] = [2]bool{true, true}
+				}
+			}
+			return
+		}
+	}
 }
-
 
 /*
 func makeResult(ret []byte) (map[string][][2]bool, error) {

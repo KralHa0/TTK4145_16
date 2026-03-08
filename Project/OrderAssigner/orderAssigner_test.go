@@ -16,7 +16,7 @@ Assigner tar ikke cab requests */
 
 func TestRunHRA(t *testing.T) {
 	wvCh := make(chan def.Worldview, 1)
-	hraOutputCh := make(chan map[string][][2]bool, 1)
+	hraOutputCh := make(chan def.AssignedOrders, 1)
 
 	wv := def.Worldview{
 		HallRequests: [def.NumFloors][2]def.OrderState{
@@ -50,21 +50,34 @@ func TestRunHRA(t *testing.T) {
 		},
 	}
 
-	a := NewOrderAssigner("testNode", wvCh, hraOutputCh)
-	go a.RunORA()
+	a := NewOrderAssigner("one", wvCh, hraOutputCh)
+	go a.Run()
 
 	wvCh <- wv
 
 	output := <-hraOutputCh
-	fmt.Println("HRA output:")
-	for id, orders := range output {
 
-		/*make acceptance test. cross reference hall/cabcalls to output*/
-		fmt.Printf("  %s: %v\n", id, orders)
+	fmt.Println("Worldview hall requests:")
+	for floor, dirs := range wv.HallRequests {
+		fmt.Printf("  floor %d: up=%v down=%v\n", floor, dirs[0], dirs[1])
+	}
+
+	fmt.Println("HRA output (assigned to own node):")
+	for floor, dirs := range output {
+		fmt.Printf("  floor %d: up=%v down=%v\n", floor, dirs[0], dirs[1])
 	}
 
 	// --- Acceptance tests ---
+	
+	// needed tests: all cabreqs placed (correct floor is {true, true}), i want to test that all hallreqs are assigned, but i dont have acces to the full 
 
+
+
+
+
+
+	// --- Old Tests ---
+	/*
 	// 1. All elevators in worldview should have an entry in output
 	for _, node := range wv.Nodes {
 		if _, exists := output[string(node.ID)]; !exists {
@@ -117,7 +130,40 @@ func TestRunHRA(t *testing.T) {
 			}
 		}
 	}
-	/*
+	
+		// 5. Hall requests with NoCall should not be assigned
+		for floor := 0; floor < def.NumFloors; floor++ {
+			for btn := 0; btn < 2; btn++ {
+				if wv.HallRequests[floor][btn] == def.NoCall {
+					for id, orders := range output {
+						if orders[floor][btn] {
+							t.Errorf("Hall request at floor %d btn %d is NoCall but was assigned to elevator %s", floor, btn, id)
+						}
+					}
+				}
+			}
+		}
+}
+	for floor := 0; floor < def.NumFloors; floor++ {
+		for dir := 0; dir < 2; dir++ {
+			state := wv.HallRequests[floor][dir]
+			if state == def.Acknowledged {
+				if !output[floor][dir] {
+					t.Errorf("Hall request at floor %d btn %d was not assigned to own elevator", floor, dir)
+				}
+			}
+		}
+	}
+
+	// 4. Cab requests with Acknowledged should be assigned to the correct elevator
+	for floor := 0; floor < def.NumFloors; floor++ {
+		if wv.Nodes[0].CabRequests[floor] == def.Acknowledged {
+			if !output[floor][0] && !output[floor][1] {
+				t.Errorf("Cab request for own elevator at floor %d not in output", floor)
+			}
+		}
+	}
+	
 		// 5. Hall requests with NoCall should not be assigned
 		for floor := 0; floor < def.NumFloors; floor++ {
 			for btn := 0; btn < 2; btn++ {

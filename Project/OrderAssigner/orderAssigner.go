@@ -42,9 +42,9 @@ type ORAInput struct {
 
 // Constructor:
 func NewOrderAssigner(
-	ownID NodeID,
+	ownID def.NodeID,
 	wvCh <-chan def.Worldview,
-	outputCh chan<- map[string][][2]bool,
+	outputCh chan<- def.AssignedOrders,
 ) *OrderAssigner {
 	exe := ""
 	switch runtime.GOOS {
@@ -66,25 +66,24 @@ func NewOrderAssigner(
 /*
 Public met: Run the cost function, is called once to initilize
 
-	TODO:
-	- add timeout
-	- panic recovery
+			TODO:
+			- add timeout
+			- panic recovery
 
-	- buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
-	- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
+			- buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
+			- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
 
-	for wv := range o.wvCh {
-    // drain to get latest
-    for len(o.wvCh) > 0 {
-        wv = <-o.wvCh
-    }
-    // ... process wv
-}
+			for wv := range o.wvCh {
+		    // drain to get latest
+		    for len(o.wvCh) > 0 {
+		        wv = <-o.wvCh
+		    }
+		    // ... process wv
+		}
 
-	- add input validation 
-		- check that wv is not empty, and that make ORAstateMap is not empty
-
-	*/
+	  - add input validation
+	  - check that wv is not empty, and that make ORAstateMap is not empty
+*/
 func (o *OrderAssigner) Run() {
 	for wv := range o.wvCh {
 		fmt.Println("Received new worldview, running cost function...")
@@ -112,15 +111,19 @@ func (o *OrderAssigner) Run() {
 			continue
 		}
 
-		insertCabCallsIntoOutput(output[string(o.ownID)], wv)
+		insertCabCallsIntoOutput(output[o.ownID], wv, o.ownID)
 
 		fmt.Println("No errors during execution")
-		//fmt.Println(output)
-		o.outputCh <- output //[o.ownID] // fix type stuff
+		var assigned def.AssignedOrders
+		copy(assigned[:], output[o.ownID])
+		o.outputCh <- assigned
 	}
 }
 
-///////Called directly from Run/////////
+
+//----------
+//Called directly from Run
+//----------
 
 // TODO: rename func to fit
 func (o *OrderAssigner) worldviewToORAInput(w def.Worldview) ORAInput {
@@ -150,8 +153,8 @@ func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
 }
 
 // rename to better name
-func makeResult(ret []byte) (map[string][][2]bool, error) {
-	outputMap := new(map[string][][2]bool)
+func makeResult(ret []byte) (map[def.NodeID][][2]bool, error) {
+	outputMap := new(map[def.NodeID][][2]bool)
 	err := json.Unmarshal(ret, outputMap)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal error: %w", err)
@@ -160,9 +163,17 @@ func makeResult(ret []byte) (map[string][][2]bool, error) {
 }
 
 // make subfunc of unmarshal thing
-func insertCabCallsIntoOutput(myOutput def.AssignedOrders, wv def.Worldview){
-
-	
+func insertCabCallsIntoOutput(myOutPut [][2]bool, wv def.Worldview, ID def.NodeID) {
+    for _, node := range wv.Nodes {
+        if node.ID == ID {
+            for floor := 0; floor < def.NumFloors; floor++ {
+                if node.CabRequests[floor] == def.Acknowledged {
+                    myOutPut[floor] = [2]bool{true, true}
+                }
+            }
+            return
+        }
+    }
 }
 
 

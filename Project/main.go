@@ -103,6 +103,10 @@ func runFullSystem() {
 		oaToFsmCh,
 		localID,
 	)
+	/*^ Du må kjøre konstruktøren til orderAssigner først, også kjøre oa.Run():
+	orderAssigner := oa.NewOrderAssigner(localID, omToOraCh, oaToFsmCh)
+	go orderAssigner.Run()
+	*/
 
 	// FSM: drives hardware, reports new orders and completions to OM
 	go fsm.Run(

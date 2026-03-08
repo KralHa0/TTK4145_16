@@ -85,7 +85,7 @@ func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
 ```
 Requires adding `"context"` and `"time"` to imports.
 
-### 7. No panic recovery in the goroutine
+### 7. No panic recovery in the goroutine ✅
 **File:** `orderAssigner.go` — **Priority: High**
 
 A panic inside `Run()` (e.g. nil map, index out of bounds) crashes the entire program.
@@ -104,7 +104,7 @@ func (o *OrderAssigner) Run() {
 ```
 
 ### 8. Buffer drain not implemented
-**File:** `orderAssigner.go:87` — **Priority: High**
+**File:** `orderAssigner.go:87` — **Priority: Medium**
 
 While the executable runs (~100ms+), multiple worldviews can queue up.
 They are processed in FIFO order, meaning the FSM receives stale assignments.
@@ -119,7 +119,7 @@ for wv := range o.wvCh {
 }
 ```
 
-### 9. No validation of empty worldview
+### 9. No validation of empty worldview ✅
 **File:** `orderAssigner.go:87` — **Priority: Medium**
 
 If `wv.Nodes` is empty, `makeORAStateMap` returns an empty map.
@@ -133,7 +133,7 @@ if len(wv.Nodes) == 0 {
 }
 ```
 
-### 10. Disconnected nodes not filtered
+### 10. Disconnected nodes not filtered ✅
 **File:** `orderAssigner.go:197` — **Priority: Low**
 
 Nodes with invalid IDs (e.g. `"DISCONNECTED"`, `""`) are included in the HRA state map,
@@ -184,9 +184,9 @@ log.Printf("OrderAssigner: error: %v", err)
 | 4 | Constructor parameter type mismatch | Critical | Done |
 | 5 | `Run()` body sends wrong type | Critical | Done |
 | 6 | No timeout on `exec.Command` | High | Done |
-| 7 | No panic recovery in goroutine | High | Open |
-| 8 | Buffer drain not implemented | High | Open |
-| 9 | No empty worldview guard | Medium | Open |
-| 10 | Disconnected nodes not filtered | Low | Open |
+| 7 | No panic recovery in goroutine | High | Done |
+| 8 | Buffer drain not implemented | Medium | Open |
+| 9 | No empty worldview guard | Medium | Done |
+| 10 | Disconnected nodes not filtered | Low | Done |
 | 11 | Fragile relative executable path | Medium | Open |
 | 12 | `fmt.Println` logging | Low | Open |

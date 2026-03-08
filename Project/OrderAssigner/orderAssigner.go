@@ -103,7 +103,29 @@ func (o *OrderAssigner) Run() {
 
 			//main goroutine loop
 			for wv := range o.wvCh {
+
+				/*/hanlde at sender instead, use a non-blocking send
+						// a buffered channel of size 1, and non blocking send
+							// sender side (wherever worldviews are sent to wvCh):
+							select {
+							case wvCh <- wv:       // send if empty
+							default:               // drop old, send new
+							    <-wvCh
+							    wvCh <- wv
+							}
+
+					// Drain loop, handle only latest call
+				    //for len(o.wvCh) > 0 {
+				    //    wv = <-o.wvCh
+				    //}
+				*/
+
 				fmt.Println("Received new worldview, running cost function...")
+
+				if len(wv.Nodes) == 0 {
+					fmt.Println("OrderAssigner: skipping worldview with no nodes")
+					continue
+				}
 
 				input := o.worldviewToORAInput(wv)
 
@@ -125,6 +147,12 @@ func (o *OrderAssigner) Run() {
 				output, err := makeResult(costFuncResult)
 				if err != nil {
 					fmt.Println("Error unmarshaling output: ", err)
+					continue
+				}
+
+				// traditional testing turn into acc test
+				if _, ok := output[o.ownID]; !ok {
+					fmt.Println("OrderAssigner: own ID not in output, skipping")
 					continue
 				}
 
@@ -205,34 +233,6 @@ func insertCabCallsIntoOutput(myOutPut [][2]bool, wv def.Worldview, ID def.NodeI
 	}
 }
 
-/*
-func makeResult(ret []byte) (map[string][][2]bool, error) {
-	output := new(map[string][][2]bool)
-	err := json.Unmarshal(ret, output)
-	if err != nil {
-		return nil, fmt.Errorf("json.Unmarshal error: %w", err)
-	}
-	return *output, nil
-}
-
-
-
-func insertCabCallsIntoOutput(output map[string][][2]bool, wv def.Worldview) {
-
-	for outputId, orderList := range output { //iterate over all keys
-		for _, inputNode := range wv.Nodes {
-			inputNodeId := inputNode.ID
-			if outputId == inputNodeId {
-				for floor := range len(orderList) {
-					if inputNode.CabRequests[floor] == def.Acknowledged {
-						output[outputId][floor] = [2]bool{true, true}
-					}
-				}
-			}
-		}
-	}
-}*/
-
 /////called from subfuncs of Run /////////
 
 // convert hallreq Type to executable bool list
@@ -254,6 +254,10 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 	States := make(map[string]ORAElevState)
 	for _, node := range nodes {
+		if !node.ID.IsValid() {
+			continue
+		}
+
 		cabRequestBools := make([]bool, def.NumFloors)
 		for floor := 0; floor < def.NumFloors; floor++ {
 			if node.CabRequests[floor] == def.Acknowledged {
@@ -297,67 +301,3 @@ func stateToString(s def.PossibleStates) string {
 		return "idle"
 	}
 }
-
-////////Called from subfunctions//////////////
-
-/* TODO:
-		Restructure output
-			send only own outputlist
-		Make init funtion
-			take in own ID
-		restructure insertIntoOutput
-			iterate only over own Id key
-		Make code pretty
-			Restructure as ADT with interface and the like
-
-		Fault tolerance
-			acc test everywhere
-			Implement buffered channels
-
-
-TODO: Generalize toBool functionality for both hall and cab calls*/
-
-// Struct members must be public in order to be accessible by json.Marshal/.Unmarshal
-// This means they must start with a capital letter, so we need to use field renaming struct tags to make them camelCase
-
-/* TODO: make a general func to assign true or false for different depth array
-
-func assignTrueOrders(inputList //generic array of numfloors x 1 or 2 cols )  {
-	for rows := 0; rows < len(inputList); rows++ {
-		for cols := 0; cols < len(inputList[rows]); cols++ {
-			if inputList[rows][cols] == def.Acknowledged {
-				inputList[rows][cols] = true
-			} else {
-				inputList[rows][cols] = false
-			}
-		}
-	}
-}*/
-
-/* Output format: map of key= id, value = list of orders
-
-Ex:
-id1 : [[up-0, down-0],
-	  [up-1, down-1],
-	  [...],
-	  [up-N, down-N]]
-
-id2 : [[up-0, down-0],
-	  [up-1, down-1],
-	  [...],
-	  [up-N, down-N]]
-
-id3 : [[up-0, down-0],
-	  [up-1, down-1],
-	  [...],
-	  [up-N, down-N]]
-*/
-
-/* ønsket nytt output:
-[[up-0, down-0],
-  [up-1, down-1],
-  [...],
-  [up-N, down-N]]
-
-dvs: send bare valuelista tilhørende own ID
-*/

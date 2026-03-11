@@ -128,8 +128,8 @@ func (o *OrderAssigner) Run() {
 					continue
 				}
 
-				fmt.Println("JSON being sent to executable:")
-				fmt.Println(string(jsonBytes))
+				//fmt.Println("JSON being sent to executable:")
+				//fmt.Println(string(jsonBytes))
 
 				costFuncResult, err := o.runORAExecutable(jsonBytes)
 				if err != nil {
@@ -157,6 +157,9 @@ func (o *OrderAssigner) Run() {
 				fmt.Println("No errors during execution")
 				var assigned def.AssignedOrders
 				copy(assigned[:], output[o.ownID])
+
+				assigned[0][1] = false
+				assigned[3][0] = false
 
 				//send
 				select {

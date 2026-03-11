@@ -6,17 +6,17 @@ import (
 )
 
 const (
-	NumFloors       = 4
-	NumButtons      = 3
-	BetweenFloors   = -1
-	GroundFloor     = 0
-	MsgFrq          = 100 * time.Millisecond
-	Addr            = "localhost"
-	Port            = 15657
-	DoorOpenTimeout = 3000 * time.Millisecond
-	WatchdogTimeout = 5000 * time.Millisecond
-	FloorTimerTimeout = 4000 * time.Millisecond
-	OraFrq          = 10 * time.Second
+	NumFloors         = 4
+	NumButtons        = 3
+	BetweenFloors     = -1
+	GroundFloor       = 0
+	MsgFrq            = 100 * time.Millisecond
+	Addr              = "localhost"
+	Port              = 15657
+	DoorOpenTimeout   = 3 * time.Second
+	WatchdogTimeout   = 5 * time.Second
+	FloorTimerTimeout = 4 * time.Second
+	OraFrq            = 10 * time.Second
 )
 
 // --------------------------------------------------
@@ -89,8 +89,8 @@ type FsmClearOrderMessage struct {
 }
 
 type OrderMessage struct {
-	Floor int
-	Direction   elevio.MotorDirection // uses typed  MotorDirection
+	Floor     int
+	Direction elevio.MotorDirection // uses typed  MotorDirection
 }
 
 // --------------------------------------------------

@@ -9,7 +9,7 @@ import (
 // function is done.
 // Doortimer is to know when to close the door, after it has been opened.
 func DoorTimer(doorTimerResetCH chan bool, doorTimerTimeoutCH chan bool) {
-	timer := time.NewTimer(def.DoorOpenTimeout * time.Millisecond)
+	timer := time.NewTimer(def.FloorTimerTimeout)
 	timer.Stop()
 	for {
 		select {
@@ -21,7 +21,7 @@ func DoorTimer(doorTimerResetCH chan bool, doorTimerTimeoutCH chan bool) {
 				default:
 				}
 			}
-			timer.Reset(def.DoorOpenTimeout * time.Millisecond)
+			timer.Reset(def.DoorOpenTimeout)
 		case <-timer.C:
 			signalDoortimeout(doorTimerTimeoutCH)
 		}
@@ -39,7 +39,7 @@ func signalDoortimeout(doorTimerTimeoutCH chan bool) {
 // function is done.
 // Watchdogtimer is to let the other elevators know, if the state-machine code is stuck/deadlock on this elevator.
 func WatchdogTimer(watchdogResetCH chan bool, watchdogTimeoutCH chan bool) {
-	timer := time.NewTimer(def.WatchdogTimeout * time.Millisecond)
+	timer := time.NewTimer(def.WatchdogTimeout)
 	timer.Stop()
 	for {
 		select {
@@ -51,7 +51,7 @@ func WatchdogTimer(watchdogResetCH chan bool, watchdogTimeoutCH chan bool) {
 				default:
 				}
 			}
-			timer.Reset(def.WatchdogTimeout * time.Millisecond)
+			timer.Reset(def.WatchdogTimeout)
 		case <-timer.C:
 			signalWatchdogTimeout(watchdogTimeoutCH)
 		}
@@ -75,7 +75,7 @@ func FloorTimer(
 	floorTimerTimeoutCH chan bool,
 	floorTimerStopCH chan bool,
 ) {
-	timer := time.NewTimer(def.FloorTimerTimeout * time.Millisecond)
+	timer := time.NewTimer(def.FloorTimerTimeout)
 	timer.Stop()
 	for {
 		select {
@@ -87,7 +87,7 @@ func FloorTimer(
 				default:
 				}
 			}
-			timer.Reset(def.FloorTimerTimeout * time.Millisecond)
+			timer.Reset(def.FloorTimerTimeout)
 		case <-timer.C:
 			signalFloorTimerTimeout(floorTimerTimeoutCH)
 		case <-floorTimerStopCH:

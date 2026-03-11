@@ -181,6 +181,7 @@ func controlElevatorStateMachine(
 	var isStoppedFlag bool = false
 	//main loop:
 	for {
+		time.Sleep(200 * time.Millisecond)
 		currentDestination = getLatestDestination(currentDestination, requestLatestDestinationCH, receiveLatestDestinationCH)
 		switch Elevator.ElevState {
 		case def.Moving:
@@ -262,7 +263,7 @@ func controlElevatorStateMachine(
 						Elevator.Direction = currentDestination.Direction
 						Elevator.ElevState = def.Idle
 						fmt.Println("ElevState = Idle")
-					}else{
+					} else {
 						//there is a call to clear
 						if Elevator.CurrentFloor == currentDestination.Floor {
 							//open door and clear order:
@@ -270,7 +271,7 @@ func controlElevatorStateMachine(
 							elevio.SetDoorOpenLamp(true)
 							ResetDoorTimer(doorTimerResetCH)
 							clearOrder(Elevator.CurrentFloor, Elevator.Direction, clearOrderCH)
-						}else{
+						} else {
 							//destination is on another Floor, head there.
 							Elevator.ElevState = def.Moving
 							fmt.Println("ElevState = Moving")
@@ -295,24 +296,24 @@ func controlElevatorStateMachine(
 			case <-time.After(5 * time.Millisecond):
 				if (isObstructedFlag == false) && (isStoppedFlag == false) {
 					//check if there is something to do:
-					if (currentDestination.Direction != elevio.MD_Stop){
-							if Elevator.CurrentFloor == currentDestination.Floor {
-								//open doors, clear order
-								Elevator.ElevState = def.DoorOpen
-								fmt.Println("ElevState = DoorOpen")
-								elevio.SetDoorOpenLamp(true)
-								ResetDoorTimer(doorTimerResetCH)
-								Elevator.Direction = currentDestination.Direction
-								clearOrder(Elevator.CurrentFloor, Elevator.Direction, clearOrderCH)
-							}else{
-								//head towards destination:
-								Elevator.ElevState = def.Moving
-								fmt.Println("ElevState = Moving")
-								Elevator.Direction = getElevatorDirection(Elevator.CurrentFloor, currentDestination.Floor)
-								elevio.SetMotorDirection(Elevator.Direction)
-								ResetFloorTimer(floorTimerResetCH, floorTimerTimeoutCH)
-							}
+					if currentDestination.Direction != elevio.MD_Stop {
+						if Elevator.CurrentFloor == currentDestination.Floor {
+							//open doors, clear order
+							Elevator.ElevState = def.DoorOpen
+							fmt.Println("ElevState = DoorOpen")
+							elevio.SetDoorOpenLamp(true)
+							ResetDoorTimer(doorTimerResetCH)
+							Elevator.Direction = currentDestination.Direction
+							clearOrder(Elevator.CurrentFloor, Elevator.Direction, clearOrderCH)
+						} else {
+							//head towards destination:
+							Elevator.ElevState = def.Moving
+							fmt.Println("ElevState = Moving")
+							Elevator.Direction = getElevatorDirection(Elevator.CurrentFloor, currentDestination.Floor)
+							elevio.SetMotorDirection(Elevator.Direction)
+							ResetFloorTimer(floorTimerResetCH, floorTimerTimeoutCH)
 						}
+					}
 					giveLocationToDestinationFunction(Elevator.CurrentFloor, Elevator.Direction, currentElevatorPositionCH)
 				}
 				ResetWatchdogTimer(watchdogResetCH, watchdogTimeoutCH)

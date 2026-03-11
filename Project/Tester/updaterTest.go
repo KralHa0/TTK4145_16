@@ -20,7 +20,7 @@ func RunOMTest() {
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
 
 	peerWvCh         := make(chan def.Worldview, 10)
-	orderCompleteCh  := make(chan def.OrderMessage, 10)
+	orderCompleteCh  := make(chan def.FsmClearOrderMessage, 10)
 	newOrderCh       := make(chan elevio.ButtonEvent, 10)
 	networkWvCh      := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
@@ -129,10 +129,10 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID def.NodeID) {
 	}
 }
 
-func simulateSMCompletions(orderCompleteCh chan<- def.OrderMessage) {
+func simulateSMCompletions(orderCompleteCh chan<- def.FsmClearOrderMessage) {
 	time.Sleep(4 * time.Second)
 
-	completions := []def.OrderMessage{
+	completions := []def.FsmClearOrderMessage{
 		{Floor: 0, Dir: def.DirDown},
 		{Floor: 1, Dir: def.DirUp},  // cab — Dir ignored by OM
 		{Floor: 2, Dir: def.DirUp},

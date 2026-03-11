@@ -57,7 +57,7 @@ func OrderManagerInit(localNodeID def.NodeID, initialCabRequests [def.NumFloors]
 
 func UpdaterRun(
 	peerWvCh <-chan def.Worldview,
-	orderCompleteCh <-chan def.OrderMessage,
+	orderCompleteCh <-chan def.FsmClearOrderMessage,
 	newOrderCh <-chan elevio.ButtonEvent,
 	networkWvCh chan<- def.Worldview,
 	orderHandlerWvCh chan<- def.Worldview,
@@ -130,7 +130,7 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 	reachedAck := false
 
 	// Store latest worldview per peer for consensus checks
-	if len(peerWv.Nodes) > 0 {
+	if len(peerWv.Nodes) > 0 && peerWv.Nodes[0].ID.IsValid() {
 		peerWorldviews[peerWv.Nodes[0].ID] = deepCopyWorldview(peerWv)
 	}
 
@@ -184,8 +184,8 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 
 func applyNewOrder(msg elevio.ButtonEvent) {
 	if msg.Button == elevio.BT_Cab {
-		cur := localNode().CabRequests[msg.Floor]
-		if validTransition(cur, def.Acknowledged) {
+		// Cab calls are local-only — set Acknowledged directly, no consensus needed
+		if localNode().CabRequests[msg.Floor] == def.NoCall {
 			localNode().CabRequests[msg.Floor] = def.Acknowledged
 		}
 	} else {
@@ -202,7 +202,7 @@ func applyNewOrder(msg elevio.ButtonEvent) {
 // Completion from FSM
 // --------------------------------------------------
 
-func applyCompletion(floor int, dir def.Direction) {
+func applyCompletion(floor int, dir def.DirectionUpDown) {
 	cur := localWv.HallRequests[floor][dir]
 	if validTransition(cur, def.Complete) {
 		localWv.HallRequests[floor][dir] = def.Complete

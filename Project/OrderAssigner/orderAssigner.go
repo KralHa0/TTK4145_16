@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -54,9 +56,9 @@ func NewOrderAssigner(
 	exe := ""
 	switch runtime.GOOS {
 	case "linux":
-		exe = "hall_request_assigner"
+		exe = filepath.Join("OrderAssigner", "hall_request_assigner")
 	case "windows":
-		exe = "hall_request_assigner.exe"
+		exe = filepath.Join("OrderAssigner", "hall_request_assigner.exe")
 	default:
 		panic("OS not supported")
 	}
@@ -106,9 +108,9 @@ func (o *OrderAssigner) Run() {
 
 				// Drain loop, handle only latest call
 				for len(o.wvCh) > 0 {
-				    wv = <-o.wvCh
+					wv = <-o.wvCh
 				}
-				
+
 				fmt.Println("Received new worldview, running cost function...")
 
 				if len(wv.Nodes) == 0 {
@@ -151,7 +153,7 @@ func (o *OrderAssigner) Run() {
 				var assigned def.AssignedOrders
 				copy(assigned[:], output[o.ownID])
 
-				//send 
+				//send
 				select {
 				case o.outputCh <- assigned:
 				default:
@@ -193,11 +195,15 @@ func makeExecutableInput(input ORAInput) ([]byte, error) {
 }
 
 func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("could not get working directory: %w", err)
+	}
+	exePath := filepath.Join(cwd, o.executable)
+
 	ctx, cancel := context.WithTimeout(context.Background(), oraTimeout)
 	defer cancel()
-	// use o.executable instead of re-detecting OS each call
-	ret, err := exec.CommandContext(ctx, "../OrderAssigner/"+o.executable, "-i", string(jsonBytes)).CombinedOutput()
-
+	ret, err := exec.CommandContext(ctx, exePath, "-i", string(jsonBytes)).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("exec.Command error: %w, output: %s", err, string(ret))
 	}

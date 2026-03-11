@@ -104,9 +104,15 @@ func NetworkRun(
 		case wv := <-localWvCh:
 			SendWorldview(wv)
 		case wv := <-stateRx:
-			peerWvCh <- wv
+			select {
+			case peerWvCh <- wv:
+			default:
+			}
 		case update := <-peerUpdateRx:
-			peerUpdateCh <- update
+			select {
+			case peerUpdateCh <- update:
+			default:
+			}
 		}
 	}
 }

@@ -23,7 +23,7 @@ func RunTest() {
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
 
 	peerWvCh         := make(chan def.Worldview, 10)
-	orderCompleteCh  := make(chan def.OrderMessage, 10)
+	orderCompleteCh  := make(chan def.FsmClearOrderMessage, 10)
 	newOrderCh       := make(chan elevio.ButtonEvent, 10)
 	networkWvCh      := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
@@ -79,7 +79,7 @@ func printControls() {
 
 func handleKeyboard(
 	newOrderCh      chan<- elevio.ButtonEvent,
-	orderCompleteCh chan<- def.OrderMessage,
+	orderCompleteCh chan<- def.FsmClearOrderMessage,
 ) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -134,12 +134,11 @@ func handleKeyboard(
 				fmt.Println("Invalid floor or direction")
 				continue
 			}
-			dir := def.Direction(dirInt)
-			orderCompleteCh <- def.OrderMessage{
+			orderCompleteCh <- def.FsmClearOrderMessage{
 				Floor: floor,
-				Dir:   dir,
+				Dir:   def.DirectionUpDown(dirInt),
 			}
-			fmt.Printf("[KEY] Completion signaled: floor %d dir %v\n", floor, dir)
+			fmt.Printf("[KEY] Completion signaled: floor %d dir %d\n", floor, dirInt)
 
 		case "p":
 			fmt.Println("--- Local Worldview ---")

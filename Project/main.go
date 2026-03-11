@@ -7,7 +7,7 @@ import (
 	"os"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
-	fsm "github.com/KralHa0/TTK4145_16/Project/FSM"
+	//fsm "github.com/KralHa0/TTK4145_16/Project/FSM"
 	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 	oa "github.com/KralHa0/TTK4145_16/Project/OrderAssigner"
 	om "github.com/KralHa0/TTK4145_16/Project/OrderManager"
@@ -60,7 +60,7 @@ func runFullSystem() {
 
 	// FSM -> OrderManager
 	fsmButtonEventToOaCh := make(chan elevio.ButtonEvent, 10) // New button calls
-	fsmClearOrderToOaCh := make(chan def.OrderMessage, 10)    // Completed orders
+	fsmClearOrderToOaCh := make(chan def.FsmClearOrderMessage, 10) // Completed orders
 	fsmElevStateCh := make(chan def.Elevator, 10)             // Current elevator state
 	malfunctionCh := make(chan bool, 10)                      // Malfunction toggles
 
@@ -106,14 +106,14 @@ func runFullSystem() {
 	go orderAssigner.Run()
 
 	// FSM: drives hardware, reports new orders and completions to OM
-	go fsm.Run(
+	/*go fsm.Run(
 		oaToFsmCh,
 		fsmButtonEventToOaCh,
 		fsmClearOrderToOaCh,
 		fsmElevStateCh,
 		malfunctionCh,
 		localID,
-	)
+	)*/
 
 	fmt.Println("System running.")
 	select {}
@@ -126,6 +126,8 @@ func runTester() {
 		tester.RunNwTest()
 	case "om":
 		tester.RunOMTest()
+	case "ora":
+		tester.RunORAOMTest()
 	case "run":
 		tester.RunTest()
 	default:
@@ -138,5 +140,6 @@ func printUsage() {
 	fmt.Println("  (no arg)  — run full elevator system")
 	fmt.Println("  nw        — network test (single machine)")
 	fmt.Println("  om        — order manager test (single machine, hardcoded)")
+	fmt.Println("  ora       — ORA + OM integration test (single machine, hardcoded)")
 	fmt.Println("  run       — combined network + updater test (multi machine)")
 }

@@ -191,12 +191,12 @@ func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
 
 // rename to better name
 func makeResult(ret []byte) (map[def.NodeID][][2]bool, error) {
-	outputMap := new(map[def.NodeID][][2]bool)
-	err := json.Unmarshal(ret, outputMap)
+	var outputMap map[def.NodeID][][2]bool
+	err := json.Unmarshal(ret, &outputMap)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal error: %w", err)
 	}
-	return *outputMap, nil
+	return outputMap, nil
 }
 
 // make subfunc of unmarshal thing
@@ -220,11 +220,7 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 	boolRequests := make([][2]bool, def.NumFloors)
 	for floor := 0; floor < def.NumFloors; floor++ {
 		for dir := 0; dir < 2; dir++ {
-			if hallRequests[floor][dir] == def.Acknowledged {
-				boolRequests[floor][dir] = true
-			} else {
-				boolRequests[floor][dir] = false
-			}
+			boolRequests[floor][dir] = hallRequests[floor][dir] == def.Acknowledged
 		}
 	}
 	return boolRequests
@@ -240,11 +236,7 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 
 		cabRequestBools := make([]bool, def.NumFloors)
 		for floor := 0; floor < def.NumFloors; floor++ {
-			if node.CabRequests[floor] == def.Acknowledged {
-				cabRequestBools[floor] = true
-			} else {
-				cabRequestBools[floor] = false
-			}
+			cabRequestBools[floor] = node.CabRequests[floor] == def.Acknowledged
 		}
 
 		States[string(node.ID)] = ORAElevState{

@@ -137,6 +137,24 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 		peerWorldviews[peerWv.Nodes[0].ID] = deepCopyWorldview(peerWv)
 	}
 
+	// Merge peer nodes into localWv so ORA sees all elevators
+	for _, peerNode := range peerWv.Nodes {
+		if !peerNode.ID.IsValid() || peerNode.ID == localNode().ID {
+			continue
+		}
+		found := false
+		for i := range localWv.Nodes {
+			if localWv.Nodes[i].ID == peerNode.ID {
+				localWv.Nodes[i].Elevator = peerNode.Elevator
+				found = true
+				break
+			}
+		}
+		if !found {
+			localWv.Nodes = append(localWv.Nodes, peerNode)
+		}
+	}
+
 	for floor := 0; floor < def.NumFloors; floor++ {
 		for dir := 0; dir < 2; dir++ {
 

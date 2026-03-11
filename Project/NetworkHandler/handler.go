@@ -71,6 +71,22 @@ func EnableTransmit() {
 	go func() { transmitEnable <- true }()
 }
 
+func printPeerEvent(update peers.PeerUpdate) {
+	if update.New != "" {
+		fmt.Printf("[peers] connected: %s\n", update.New)
+	}
+	for _, id := range update.Lost {
+		fmt.Printf("[peers] disconnected: %s\n", id)
+	}
+	fmt.Print("[peers] active: ")
+	for id, alive := range aliveList.Peers {
+		if alive {
+			fmt.Printf("%s ", id)
+		}
+	}
+	fmt.Println()
+}
+
 func UpdateAliveList(update peers.PeerUpdate) {
 	aliveListMu.Lock()
 	defer aliveListMu.Unlock()
@@ -81,6 +97,7 @@ func UpdateAliveList(update peers.PeerUpdate) {
 	for _, id := range update.Lost {
 		aliveList.Peers[def.NodeID(id)] = false
 	}
+	printPeerEvent(update)
 }
 
 func GetAliveList() def.AliveList {

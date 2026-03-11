@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -41,7 +42,7 @@ type ORAElevState struct {
 }
 
 type ORAInput struct {
-	HallRequests [][2]bool              `json:"hallRequests"`
+	HallRequests [][2]bool               `json:"hallRequests"`
 	States       map[string]ORAElevState `json:"states"`
 }
 
@@ -51,12 +52,14 @@ func NewOrderAssigner(
 	wvCh <-chan def.Worldview,
 	outputCh chan<- def.AssignedOrders,
 ) *OrderAssigner {
+	_, srcFile, _, _ := runtime.Caller(0)
+	srcDir := filepath.Dir(srcFile)
 	exe := ""
 	switch runtime.GOOS {
 	case "linux":
-		exe = "hall_request_assigner"
+		exe = filepath.Join(srcDir, "hall_request_assigner")
 	case "windows":
-		exe = "hall_request_assigner.exe"
+		exe = filepath.Join(srcDir, "hall_request_assigner.exe")
 	default:
 		panic("OS not supported")
 	}
@@ -197,11 +200,11 @@ func makeExecutableInput(input ORAInput) ([]byte, error) {
 }
 
 func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
+	exePath := o.executable
+
 	ctx, cancel := context.WithTimeout(context.Background(), oraTimeout)
 	defer cancel()
-	// use o.executable instead of re-detecting OS each call
-	ret, err := exec.CommandContext(ctx, "../OrderAssigner/"+o.executable, "-i", string(jsonBytes)).CombinedOutput()
-
+	ret, err := exec.CommandContext(ctx, exePath, "-i", string(jsonBytes)).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("exec.Command error: %w, output: %s", err, string(ret))
 	}

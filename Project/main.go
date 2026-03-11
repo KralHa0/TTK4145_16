@@ -6,7 +6,7 @@ import (
 	"os"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
-	fsm "github.com/KralHa0/TTK4145_16/Project/FSM"
+	//fsm "github.com/KralHa0/TTK4145_16/Project/FSM"
 	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 	oa "github.com/KralHa0/TTK4145_16/Project/OrderAssigner"
 	om "github.com/KralHa0/TTK4145_16/Project/OrderManager"
@@ -112,14 +112,14 @@ func runFullSystem() {
 	*/
 
 	// FSM: drives hardware, reports new orders and completions to OM
-	go fsm.Run(
-		oaToFsmCh,
-		fsmNewOrderCh,
-		fsmCompleteCh,
-		fsmElevStateCh,
-		malfunctionCh,
-		localID,
-	)
+	//go fsm.Run(
+	//	oaToFsmCh,
+	//	fsmNewOrderCh,
+	//	fsmCompleteCh,
+	//	fsmElevStateCh,
+	//	malfunctionCh,
+	//	localID,
+	//)
 
 	fmt.Println("System running.")
 	select {}

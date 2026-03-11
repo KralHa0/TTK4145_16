@@ -61,7 +61,6 @@ func runFullSystem() {
 	// FSM -> OrderManager
 	fsmButtonEventToOmCh := make(chan elevio.ButtonEvent, 10) // New button calls
 	fsmClearOrderToOmCh := make(chan def.FsmClearOrderMessage, 10) // Completed orders
-	fsmElevStateCh := make(chan def.Elevator, 10)             // Current elevator state
 	malfunctionCh := make(chan bool, 10)                      // Malfunction toggles
 
 	// ------------------------------------------------
@@ -95,7 +94,6 @@ func runFullSystem() {
 		omToOraWvCh,          // orderHandlerWvCh
 		omToFsmWvCh,          // omToFsmWvCh
 		nw.GetAliveList,      // getAliveList
-		fsmElevStateCh,       // fsmElevStateCh
 		malfunctionCh,        // malfunctionCh
 	)
 

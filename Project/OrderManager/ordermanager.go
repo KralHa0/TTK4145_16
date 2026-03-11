@@ -1,6 +1,7 @@
 package ordermanager
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -63,7 +64,6 @@ func UpdaterRun(
 	orderHandlerWvCh chan<- def.Worldview,
 	omToFsmWvCh chan<- def.Worldview,
 	getAliveList func() def.AliveList,
-	fsmElevStateCh <-chan def.Elevator,
 	malfunctionCh <-chan bool,
 ) {
 	ticker := time.NewTicker(def.MsgFrq)
@@ -97,6 +97,7 @@ func UpdaterRun(
 			if reachedAck {
 				sendToOrderHandler(orderHandlerWvCh)
 			}
+			//fmt.Println("GetFromNW")
 			sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
 
@@ -105,20 +106,14 @@ func UpdaterRun(
 			localWvMu.Lock()
 			applyNewOrder(newOrder)
 			sendToOrderHandler(orderHandlerWvCh)
-			sendToFsm(omToFsmWvCh)
+			//sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
 
 		// Order completion from FSM
 		case orderMsg := <-orderCompleteCh:
 			localWvMu.Lock()
 			applyCompletion(orderMsg.Floor, orderMsg.Dir)
-			sendToFsm(omToFsmWvCh)
-			localWvMu.Unlock()
-
-		case elevState := <-fsmElevStateCh:
-			localWvMu.Lock()
-			localNode().Elevator = elevState
-			sendToFsm(omToFsmWvCh)
+			//sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
 
 		case malfunction := <-malfunctionCh:
@@ -283,6 +278,7 @@ func GetLocalWv() def.Worldview {
 func sendToOrderHandler(orderHandlerWvCh chan<- def.Worldview) {
 	select {
 	case orderHandlerWvCh <- deepCopyWorldview(localWv):
+		fmt.Println("Sending to ORA")
 	default:
 	}
 }
@@ -290,6 +286,7 @@ func sendToOrderHandler(orderHandlerWvCh chan<- def.Worldview) {
 func sendToFsm(omToFsmWvCh chan<- def.Worldview) {
 	select {
 	case omToFsmWvCh <- deepCopyWorldview(localWv):
+		//fmt.Println("Sending to FSM")
 	default:
 	}
 }

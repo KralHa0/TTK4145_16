@@ -25,7 +25,6 @@ func RunOMTest() {
 	networkWvCh      := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
 	omToFsmWvCh      := make(chan def.Worldview, 10)
-	fsmElevStateCh   := make(chan def.Elevator, 10)
     malfunctionCh	 := make(chan bool, 10)
 
 	peerID := def.NodeID("192.168.1.100")
@@ -52,7 +51,6 @@ func RunOMTest() {
 		orderHandlerWvCh,
 		omToFsmWvCh,
 		getAliveList,
-		fsmElevStateCh,
 		malfunctionCh,
 	)
 	go drainNetwork(omToFsmWvCh)

@@ -30,7 +30,6 @@ func RunORAOMTest() {
 	omToOraWvCh     := make(chan def.Worldview, 10)
 	omToFsmWvCh     := make(chan def.Worldview, 10)
 	oaToFsmCh       := make(chan def.AssignedOrders, 10)
-	fsmElevStateCh  := make(chan def.Elevator, 10)
 	malfunctionCh   := make(chan bool, 10)
 
 	// Single-node alive list: consensus is reached as soon as local node has Exist
@@ -46,7 +45,6 @@ func RunORAOMTest() {
 		omToOraWvCh,
 		omToFsmWvCh,
 		getAliveList,
-		fsmElevStateCh,
 		malfunctionCh,
 	)
 

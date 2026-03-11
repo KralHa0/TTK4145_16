@@ -1,6 +1,6 @@
 //code for state machine.
 //Daniel writes this part.
-
+package Statemachine
 
 import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"     //problem: cannot build program, because paths are wrong.
@@ -18,7 +18,7 @@ func InitStateMachine(
 	clearOrderCH chan OrderMessage,  //---------------------make sure this is buffered.
 	buttonEventCH chan elevio.ButtonEvent,  //---------feil type. havn vil ha clearordermessage
 	costFunctionOutputCH <-chan [def.NumFloors][2]bool,
-	worldviewCH chan //---------------------------------------------fiks denne.
+	worldviewCH chan def.Worldview,//---------------------------------------------fiks denne.
 ){ 
 	// Initialize elevio/hardware
 	elevatorAddr := fmt.Sprintf("%s:%d", def.Addr, def.Port)

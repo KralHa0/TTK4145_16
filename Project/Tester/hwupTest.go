@@ -1,6 +1,7 @@
 package tester
 
 import (
+	"Driver-go/elevio"
 	"Network-go/network/peers"
 	"bufio"
 	"fmt"
@@ -22,10 +23,11 @@ func RunTest() {
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
 
 	peerWvCh         := make(chan def.Worldview, 10)
-	orderCompleteCh  := make(chan def.OrderMessage, 10)
-	newOrderCh       := make(chan def.NewOrderMessage, 10)
+	orderCompleteCh  := make(chan def.FsmClearOrderMessage, 10)
+	newOrderCh       := make(chan elevio.ButtonEvent, 10)
 	networkWvCh      := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
+	omToFsmWvCh      := make(chan def.Worldview, 10)
 	peerUpdateCh     := make(chan peers.PeerUpdate, 10)
 	localWvCh        := make(chan def.Worldview, 10)
 	fsmElevStateCh   := make(chan def.Elevator, 10)
@@ -46,10 +48,12 @@ func RunTest() {
 		newOrderCh,
 		networkWvCh,
 		orderHandlerWvCh,
+		omToFsmWvCh,
 		nw.GetAliveList,
 		fsmElevStateCh,
 		malfunctionCh,
 	)
+	go drainNetwork(omToFsmWvCh)
 
 	go func() {
 		for wv := range networkWvCh {
@@ -74,8 +78,8 @@ func printControls() {
 }
 
 func handleKeyboard(
-	newOrderCh      chan<- def.NewOrderMessage,
-	orderCompleteCh chan<- def.OrderMessage,
+	newOrderCh      chan<- elevio.ButtonEvent,
+	orderCompleteCh chan<- def.FsmClearOrderMessage,
 ) {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -97,13 +101,11 @@ func handleKeyboard(
 				fmt.Println("Invalid floor or direction")
 				continue
 			}
-			dir := def.Direction(dirInt)
-			newOrderCh <- def.NewOrderMessage{
-				Floor:    floor,
-				Dir:      dir,
-				CallType: def.Hallcall,
+			newOrderCh <- elevio.ButtonEvent{
+				Floor:  floor,
+				Button: elevio.ButtonType(dirInt), // 0=BT_HallUp, 1=BT_HallDown
 			}
-			fmt.Printf("[KEY] New hall call: floor %d dir %v\n", floor, dir)
+			fmt.Printf("[KEY] New hall call: floor %d dir %d\n", floor, dirInt)
 
 		case "c":
 			if len(parts) < 2 {
@@ -115,10 +117,9 @@ func handleKeyboard(
 				fmt.Println("Invalid floor")
 				continue
 			}
-			newOrderCh <- def.NewOrderMessage{
-				Floor:    floor,
-				Dir:      def.DirUp, // ignored for cab calls inside OM
-				CallType: def.Cabcall,
+			newOrderCh <- elevio.ButtonEvent{
+				Floor:  floor,
+				Button: elevio.BT_Cab,
 			}
 			fmt.Printf("[KEY] New cab call: floor %d\n", floor)
 
@@ -133,12 +134,11 @@ func handleKeyboard(
 				fmt.Println("Invalid floor or direction")
 				continue
 			}
-			dir := def.Direction(dirInt)
-			orderCompleteCh <- def.OrderMessage{
+			orderCompleteCh <- def.FsmClearOrderMessage{
 				Floor: floor,
-				Dir:   dir,
+				Dir:   def.DirectionUpDown(dirInt),
 			}
-			fmt.Printf("[KEY] Completion signaled: floor %d dir %v\n", floor, dir)
+			fmt.Printf("[KEY] Completion signaled: floor %d dir %d\n", floor, dirInt)
 
 		case "p":
 			fmt.Println("--- Local Worldview ---")

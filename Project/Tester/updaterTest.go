@@ -1,6 +1,7 @@
 package tester
 
 import (
+	"Driver-go/elevio"
 	"fmt"
 	"time"
 
@@ -19,10 +20,11 @@ func RunOMTest() {
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
 
 	peerWvCh         := make(chan def.Worldview, 10)
-	orderCompleteCh  := make(chan def.OrderMessage, 10)
-	newOrderCh       := make(chan def.NewOrderMessage, 10)
+	orderCompleteCh  := make(chan def.FsmClearOrderMessage, 10)
+	newOrderCh       := make(chan elevio.ButtonEvent, 10)
 	networkWvCh      := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
+	omToFsmWvCh      := make(chan def.Worldview, 10)
 	fsmElevStateCh   := make(chan def.Elevator, 10)
     malfunctionCh	 := make(chan bool, 10)
 
@@ -48,10 +50,12 @@ func RunOMTest() {
 		newOrderCh,
 		networkWvCh,
 		orderHandlerWvCh,
+		omToFsmWvCh,
 		getAliveList,
 		fsmElevStateCh,
 		malfunctionCh,
 	)
+	go drainNetwork(omToFsmWvCh)
 
 	go listenOrderHandler(orderHandlerWvCh)
 	go drainNetwork(networkWvCh)
@@ -63,19 +67,18 @@ func RunOMTest() {
 	select {}
 }
 
-func simulateNewOrders(newOrderCh chan<- def.NewOrderMessage) {
+func simulateNewOrders(newOrderCh chan<- elevio.ButtonEvent) {
 	time.Sleep(500 * time.Millisecond)
 
-	orders := []def.NewOrderMessage{
-		{Floor: 0, Dir: def.DirDown, CallType: def.Hallcall},
-		{Floor: 2, Dir: def.DirUp,   CallType: def.Hallcall},
-		{Floor: 3, Dir: def.DirUp,   CallType: def.Hallcall},
-		{Floor: 1, Dir: def.DirUp,   CallType: def.Cabcall}, // Dir ignored for cab
+	orders := []elevio.ButtonEvent{
+		{Floor: 0, Button: elevio.BT_HallDown},
+		{Floor: 2, Button: elevio.BT_HallUp},
+		{Floor: 3, Button: elevio.BT_HallUp},
+		{Floor: 1, Button: elevio.BT_Cab},
 	}
 
 	for _, order := range orders {
-		fmt.Printf("[NEW ORDER SIM] floor=%d dir=%v type=%v\n",
-			order.Floor, order.Dir, order.CallType)
+		fmt.Printf("[NEW ORDER SIM] floor=%d button=%v\n", order.Floor, order.Button)
 		newOrderCh <- order
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -126,10 +129,10 @@ func simulatePeerWorldviews(peerWvCh chan<- def.Worldview, peerID def.NodeID) {
 	}
 }
 
-func simulateSMCompletions(orderCompleteCh chan<- def.OrderMessage) {
+func simulateSMCompletions(orderCompleteCh chan<- def.FsmClearOrderMessage) {
 	time.Sleep(4 * time.Second)
 
-	completions := []def.OrderMessage{
+	completions := []def.FsmClearOrderMessage{
 		{Floor: 0, Dir: def.DirDown},
 		{Floor: 1, Dir: def.DirUp},  // cab — Dir ignored by OM
 		{Floor: 2, Dir: def.DirUp},

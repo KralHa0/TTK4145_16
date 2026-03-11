@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	stateTx        = make(chan def.Worldview)
+	stateTx        = make(chan def.Worldview, 10)
 	stateRx        = make(chan def.Worldview)
 	peerUpdateRx   = make(chan peers.PeerUpdate)
 	transmitEnable = make(chan bool)
@@ -104,9 +104,15 @@ func NetworkRun(
 		case wv := <-localWvCh:
 			SendWorldview(wv)
 		case wv := <-stateRx:
-			peerWvCh <- wv
+			select {
+			case peerWvCh <- wv:
+			default:
+			}
 		case update := <-peerUpdateRx:
-			peerUpdateCh <- update
+			select {
+			case peerUpdateCh <- update:
+			default:
+			}
 		}
 	}
 }

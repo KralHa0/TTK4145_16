@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"Driver-go/elevio"
+
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
@@ -19,6 +21,14 @@ var (
 // peerWorldviews stores the last known worldview per peer ID
 // for use in allAliveHallAtOrAbove consensus checks.
 var peerWorldviews = make(map[def.NodeID]def.Worldview)
+
+// localNode returns a pointer to the local node, panicking if not initialised.
+func localNode() *def.Node {
+	if len(localWv.Nodes) == 0 {
+		panic("ordermanager: localWv has no nodes — was OrderManagerInit called?")
+	}
+	return &localWv.Nodes[0]
+}
 
 // --------------------------------------------------
 // Initialization
@@ -47,48 +57,74 @@ func OrderManagerInit(localNodeID def.NodeID, initialCabRequests [def.NumFloors]
 
 func UpdaterRun(
 	peerWvCh <-chan def.Worldview,
-	orderCompleteCh <-chan def.OrderMessage,
-	newOrderCh <-chan def.NewOrderMessage,
+	orderCompleteCh <-chan def.FsmClearOrderMessage,
+	newOrderCh <-chan elevio.ButtonEvent,
 	networkWvCh chan<- def.Worldview,
 	orderHandlerWvCh chan<- def.Worldview,
+	omToFsmWvCh chan<- def.Worldview,
 	getAliveList func() def.AliveList,
 	fsmElevStateCh <-chan def.Elevator,
 	malfunctionCh <-chan bool,
 ) {
 	ticker := time.NewTicker(def.MsgFrq)
 	defer ticker.Stop()
+	oraTicker := time.NewTicker(def.OraFrq)
+	defer oraTicker.Stop()
 
 	for {
 		select {
 
 		// Periodic broadcast — non-blocking to avoid stalling the loop
 		case <-ticker.C:
+			localWvMu.RLock()
+			wvCopy := deepCopyWorldview(localWv)
+			localWvMu.RUnlock()
 			select {
-			case networkWvCh <- deepCopyWorldview(localWv):
+			case networkWvCh <- wvCopy:
 			default:
 			}
 
+		// Periodic ORA re-evaluation
+		case <-oraTicker.C:
+			localWvMu.RLock()
+			sendToOrderHandler(orderHandlerWvCh)
+			localWvMu.RUnlock()
+
 		// Merge incoming peer worldview
 		case peerWv := <-peerWvCh:
+			localWvMu.Lock()
 			reachedAck := mergePeerWorldview(peerWv, getAliveList())
 			if reachedAck {
 				sendToOrderHandler(orderHandlerWvCh)
 			}
+			sendToFsm(omToFsmWvCh)
+			localWvMu.Unlock()
 
 		// New button press from FSM
 		case newOrder := <-newOrderCh:
+			localWvMu.Lock()
 			applyNewOrder(newOrder)
 			sendToOrderHandler(orderHandlerWvCh)
+			sendToFsm(omToFsmWvCh)
+			localWvMu.Unlock()
 
 		// Order completion from FSM
 		case orderMsg := <-orderCompleteCh:
+			localWvMu.Lock()
 			applyCompletion(orderMsg.Floor, orderMsg.Dir)
+			sendToFsm(omToFsmWvCh)
+			localWvMu.Unlock()
 
 		case elevState := <-fsmElevStateCh:
-			localWv.Nodes[0].Elevator = elevState
+			localWvMu.Lock()
+			localNode().Elevator = elevState
+			sendToFsm(omToFsmWvCh)
+			localWvMu.Unlock()
 
 		case malfunction := <-malfunctionCh:
-			localWv.Nodes[0].Elevator.Malfunctioned = malfunction
+			localWvMu.Lock()
+			localNode().Elevator.Malfunctioned = malfunction
+			localWvMu.Unlock()
 		}
 
 	}
@@ -102,7 +138,7 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 	reachedAck := false
 
 	// Store latest worldview per peer for consensus checks
-	if len(peerWv.Nodes) > 0 {
+	if len(peerWv.Nodes) > 0 && peerWv.Nodes[0].ID.IsValid() {
 		peerWorldviews[peerWv.Nodes[0].ID] = deepCopyWorldview(peerWv)
 	}
 
@@ -136,9 +172,9 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 				}
 			}
 
-			// Complete -> NoCall: all alive peers confirm Complete, or peer already reset
+			// Complete -> NoCall: all alive peers confirm Complete
 			if localWv.HallRequests[floor][dir] == def.Complete {
-				if allAliveHallAtOrAbove(floor, dir, def.Complete, aliveList) || peer == def.NoCall {
+				if allAliveHallAtOrAbove(floor, dir, def.Complete, aliveList) {
 					if validTransition(localWv.HallRequests[floor][dir], def.NoCall) {
 						localWv.HallRequests[floor][dir] = def.NoCall
 					}
@@ -154,16 +190,18 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 // New order from FSM
 // --------------------------------------------------
 
-func applyNewOrder(msg def.NewOrderMessage) {
-	if msg.CallType == def.Cabcall {
-		cur := localWv.Nodes[0].CabRequests[msg.Floor]
-		if validTransition(cur, def.Acknowledged) {
-			localWv.Nodes[0].CabRequests[msg.Floor] = def.Acknowledged
+func applyNewOrder(msg elevio.ButtonEvent) {
+	if msg.Button == elevio.BT_Cab {
+		// Cab calls are local-only — set Acknowledged directly, no consensus needed
+		if localNode().CabRequests[msg.Floor] == def.NoCall {
+			localNode().CabRequests[msg.Floor] = def.Acknowledged
 		}
 	} else {
-		cur := localWv.HallRequests[msg.Floor][msg.Dir]
+		// BT_HallUp=0 maps to dir index 0, BT_HallDown=1 maps to dir index 1
+		dir := int(msg.Button)
+		cur := localWv.HallRequests[msg.Floor][dir]
 		if validTransition(cur, def.Exist) {
-			localWv.HallRequests[msg.Floor][msg.Dir] = def.Exist
+			localWv.HallRequests[msg.Floor][dir] = def.Exist
 		}
 	}
 }
@@ -172,16 +210,15 @@ func applyNewOrder(msg def.NewOrderMessage) {
 // Completion from FSM
 // --------------------------------------------------
 
-func applyCompletion(floor int, dir def.Direction) {
+func applyCompletion(floor int, dir def.DirectionUpDown) {
 	cur := localWv.HallRequests[floor][dir]
 	if validTransition(cur, def.Complete) {
 		localWv.HallRequests[floor][dir] = def.Complete
 	}
 
 	// Cab requests are local-only — clear immediately, no peer consensus needed
-	cabCur := localWv.Nodes[0].CabRequests[floor]
-	if validTransition(cabCur, def.NoCall) {
-		localWv.Nodes[0].CabRequests[floor] = def.NoCall
+	if localNode().CabRequests[floor] != def.NoCall {
+		localNode().CabRequests[floor] = def.NoCall
 	}
 }
 
@@ -195,12 +232,15 @@ func allAliveHallAtOrAbove(
 	threshold def.OrderState,
 	aliveList def.AliveList,
 ) bool {
+	if len(aliveList.Peers) == 0 {
+		return false
+	}
 	for peerID, alive := range aliveList.Peers {
 		if !alive {
 			continue
 		}
 
-		if peerID == localWv.Nodes[0].ID {
+		if peerID == localNode().ID {
 			if localWv.HallRequests[floor][dir] < threshold {
 				return false
 			}
@@ -243,6 +283,13 @@ func GetLocalWv() def.Worldview {
 func sendToOrderHandler(orderHandlerWvCh chan<- def.Worldview) {
 	select {
 	case orderHandlerWvCh <- deepCopyWorldview(localWv):
+	default:
+	}
+}
+
+func sendToFsm(omToFsmWvCh chan<- def.Worldview) {
+	select {
+	case omToFsmWvCh <- deepCopyWorldview(localWv):
 	default:
 	}
 }

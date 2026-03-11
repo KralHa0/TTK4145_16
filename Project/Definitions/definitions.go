@@ -15,6 +15,7 @@ const (
 	Port            = 15657
 	DoorOpenTimeout = 3000 * time.Millisecond
 	WatchdogTimeout = 5000 * time.Millisecond
+	OraFrq          = 10 * time.Second
 )
 
 // --------------------------------------------------
@@ -30,20 +31,20 @@ func (id NodeID) IsValid() bool {
 }
 
 // --------------------------------------------------
-// Direction
+// DirectionUpDown
 // --------------------------------------------------
 
-type Direction int
+type DirectionUpDown int
 
 const (
-	DirUp   Direction = 0
-	DirDown Direction = 1
+	DirUp   DirectionUpDown = 0
+	DirDown DirectionUpDown = 1
 )
 
-// DirFromMotor converts an elevio.MotorDirection to a Direction.
+// DirFromMotor converts an elevio.MotorDirection to a DirectionUpDown.
 // Returns (dir, true) for MD_Up and MD_Down.
 // Returns (0, false) for MD_Stop — not a valid hall direction.
-func DirFromMotor(d elevio.MotorDirection) (Direction, bool) {
+func DirFromMotor(d elevio.MotorDirection) (DirectionUpDown, bool) {
 	switch d {
 	case elevio.MD_Up:
 		return DirUp, true
@@ -55,7 +56,7 @@ func DirFromMotor(d elevio.MotorDirection) (Direction, bool) {
 }
 
 // ToMotorDir converts back to elevio.MotorDirection for hardware calls.
-func (d Direction) ToMotorDir() elevio.MotorDirection {
+func (d DirectionUpDown) ToMotorDir() elevio.MotorDirection {
 	if d == DirUp {
 		return elevio.MD_Up
 	}
@@ -65,42 +66,30 @@ func (d Direction) ToMotorDir() elevio.MotorDirection {
 type AssignedOrders [NumFloors][2]bool
 
 // --------------------------------------------------
-// CallType
-// --------------------------------------------------
-
-type CallType int
-
-const (
-	Hallcall CallType = iota // Fix: was missing iota, both were 0
-	Cabcall
-)
-
-// --------------------------------------------------
 // OrderState
 // --------------------------------------------------
 
 type OrderState uint8
 
 const (
-	NoCall      OrderState = 0
-	Exist       OrderState = 1
+	NoCall       OrderState = 0
+	Exist        OrderState = 1
 	Acknowledged OrderState = 2
-	Complete    OrderState = 3
+	Complete     OrderState = 3
 )
 
 // --------------------------------------------------
 // FSM messages
 // --------------------------------------------------
 
-type NewOrderMessage struct {
-	Floor    int
-	Dir      Direction         // uses typed Direction, not raw MotorDirection
-	CallType CallType
+type FsmClearOrderMessage struct {
+	Floor int
+	Dir   DirectionUpDown // uses typed DirectionUpDown, not raw MotorDirection
 }
 
 type OrderMessage struct {
 	Floor int
-	Dir   Direction             // uses typed Direction, not raw MotorDirection
+	Dir   elevio.MotorDirection // uses typed  MotorDirection
 }
 
 // --------------------------------------------------

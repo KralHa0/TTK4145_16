@@ -65,17 +65,6 @@ func (d Direction) ToMotorDir() elevio.MotorDirection {
 type AssignedOrders [NumFloors][2]bool
 
 // --------------------------------------------------
-// CallType
-// --------------------------------------------------
-
-type CallType int
-
-const (
-	Hallcall CallType = iota // Fix: was missing iota, both were 0
-	Cabcall
-)
-
-// --------------------------------------------------
 // OrderState
 // --------------------------------------------------
 
@@ -91,12 +80,6 @@ const (
 // --------------------------------------------------
 // FSM messages
 // --------------------------------------------------
-
-type NewOrderMessage struct {
-	Floor    int
-	Dir      Direction         // uses typed Direction, not raw MotorDirection
-	CallType CallType
-}
 
 type OrderMessage struct {
 	Floor int

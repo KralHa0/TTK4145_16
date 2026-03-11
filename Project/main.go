@@ -1,6 +1,7 @@
 package main
 
 import (
+	"Driver-go/elevio"
 	"Network-go/network/peers"
 	"fmt"
 	"os"
@@ -51,16 +52,17 @@ func runFullSystem() {
 	networkToOmWvCh := make(chan def.Worldview, 10) // Network -> OM
 
 	// OrderManager -> OrderAssigner
-	omToOraCh := make(chan def.Worldview, 10) // Worldview trigger
+	omToOraWvCh := make(chan def.Worldview, 10) // Worldview trigger FIFO buffer
+	omToFsmWvCh := make(chan def.Worldview, 10) //Send worldview for light setting
 
 	// OrderAssigner -> FSM
 	oaToFsmCh := make(chan def.AssignedOrders, 10) // Cost function output
 
 	// FSM -> OrderManager
-	fsmNewOrderCh := make(chan def.NewOrderMessage, 10) // New button calls
-	fsmCompleteCh := make(chan def.OrderMessage, 10)    // Completed orders
-	fsmElevStateCh := make(chan def.Elevator, 10)       // Current elevator state
-	malfunctionCh := make(chan bool, 10)                // Malfunction toggles
+	fsmButtonEventToOaCh := make(chan elevio.ButtonEvent, 10) // New button calls
+	fsmClearOrderToOaCh := make(chan def.OrderMessage, 10)    // Completed orders
+	fsmElevStateCh := make(chan def.Elevator, 10)             // Current elevator state
+	malfunctionCh := make(chan bool, 10)                      // Malfunction toggles
 
 	// ------------------------------------------------
 	// Goroutines
@@ -86,36 +88,28 @@ func runFullSystem() {
 
 	// OrderManager: single owner of worldview state
 	go om.UpdaterRun(
-		networkToOmWvCh, // peerWvCh
-		fsmCompleteCh,   // orderCompleteCh
-		fsmNewOrderCh,   // newOrderCh
-		omToNetworkWvCh, // networkWvCh
-		omToOraCh,       // orderHandlerWvCh
-		nw.GetAliveList, // getAliveList
-		fsmElevStateCh,  // fsmElevStateCh
-		malfunctionCh,   // malfunctionCh
+		networkToOmWvCh,      // peerWvCh
+		fsmClearOrderToOaCh,  // orderCompleteCh
+		fsmButtonEventToOaCh, // newOrderCh
+		omToNetworkWvCh,      // networkWvCh
+		omToOraWvCh,          // orderHandlerWvCh
+		omToFsmWvCh,          // omToFsmWvCh
+		nw.GetAliveList,      // getAliveList
+		fsmElevStateCh,       // fsmElevStateCh
+		malfunctionCh,        // malfunctionCh
 	)
 
 	// OrderAssigner: runs cost function on acknowledged worldview,
 	// produces per-elevator order assignment for FSM
 
-	orderAssigner := oa.NewOrderAssigner(localID, omToOraCh, oaToFsmCh)
+	orderAssigner := oa.NewOrderAssigner(localID, omToOraWvCh, oaToFsmCh)
 	go orderAssigner.Run()
-	
-	/*
-	go oa.Run(
-		omToOraCh,
-		oaToFsmCh,
-		localID,
-	)
-	^ Du må kjøre konstruktøren til orderAssigner først, også kjøre oa.Run():
-	*/
 
 	// FSM: drives hardware, reports new orders and completions to OM
 	go fsm.Run(
 		oaToFsmCh,
-		fsmNewOrderCh,
-		fsmCompleteCh,
+		fsmButtonEventToOaCh,
+		fsmClearOrderToOaCh,
 		fsmElevStateCh,
 		malfunctionCh,
 		localID,

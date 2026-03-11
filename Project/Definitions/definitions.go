@@ -15,6 +15,7 @@ const (
 	Port            = 15657
 	DoorOpenTimeout = 3000 * time.Millisecond
 	WatchdogTimeout = 5000 * time.Millisecond
+	FloorTimerTimeout = 4000 * time.Millisecond
 	OraFrq          = 10 * time.Second
 )
 
@@ -89,7 +90,7 @@ type FsmClearOrderMessage struct {
 
 type OrderMessage struct {
 	Floor int
-	Dir   elevio.MotorDirection // uses typed  MotorDirection
+	Direction   elevio.MotorDirection // uses typed  MotorDirection
 }
 
 // --------------------------------------------------

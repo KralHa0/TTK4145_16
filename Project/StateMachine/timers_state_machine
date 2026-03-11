@@ -6,12 +6,13 @@ import (
 
 
 //function is done.
-func door_timer(door_reset_ch chan bool, door_timeout_ch chan bool) {
-	timer := time.NewTimer(def.door_open_timeout * time.Millisecond)
+//Doortimer is to know when to close the door, after it has been opened.
+func DoorTimer(doorTimerResetCH chan bool, doorTimerTimeoutCH chan bool) {
+	timer := time.NewTimer(def.DoorOpenTimeout * time.Millisecond)
 	timer.Stop()
 	for {
 		select {
-		case <-reset_door_ch:
+		case <-doorTimerResetCH:
 			//drain timer.C before reset.
 			if (!timer.Stop()) {
 				select {
@@ -19,32 +20,33 @@ func door_timer(door_reset_ch chan bool, door_timeout_ch chan bool) {
 				default:
 				}
 			}
-			timer.Reset(def.door_open_timeout * time.Millisecond)
+			timer.Reset(def.DoorOpenTimeout * time.Millisecond)
 		case <-timer.C:
-			when_door_timeout(door_timeout_ch)
+			signalDoortimeout(doorTimerTimeoutCH)
 		}
 	}
 }
 
 
-func reset_door_timer(door_reset_ch chan bool) {
-	door_reset_ch <- true
+func ResetDoorTimer(doorTimerResetCH chan bool) {
+	doorTimerResetCH <- true
 }
 
 
-func when_door_timeout(door_timeout_ch chan bool){
-	door_timeout_ch <- true
+func signalDoortimeout(doorTimerTimeoutCH chan bool){
+	doorTimerTimeoutCH <- true
 }
 
 
 
 //function is done.
-func watchdog_timer(watchdog_reset_ch chan bool, watchdog_timeout_ch chan bool) {
-	timer := time.NewTimer(def.watchdog_timeout * time.Millisecond)  
+//Watchdogtimer is to let the other elevators know, if the state-machine code is stuck/deadlock on this elevator.
+func WatchdogTimer(watchdogResetCH chan bool, watchdogTimeoutCH chan bool) {
+	timer := time.NewTimer(def.WatchdogTimeout * time.Millisecond)  
 	timer.Stop()
 	for {
 		select {
-		case <-watchdog_reset_ch:
+		case <-watchdogResetCH:
 			//drain timer.C before reset.
 			if (!timer.Stop()) {
 				select {
@@ -52,21 +54,79 @@ func watchdog_timer(watchdog_reset_ch chan bool, watchdog_timeout_ch chan bool) 
 				default:
 				}
 			}
-			timer.Reset(def.watchdog_timeout * time.Millisecond)
+			timer.Reset(def.WatchdogTimeout * time.Millisecond)
 		case <-timer.C:
-			when_watchdog_timeout(watchdog_timeout_ch)
+			signalWatchdogTimeout(watchdogTimeoutCH)
 		}
 	}
 }
 
 
-func reset_watchdog_timer(watchdog_reset_ch chan bool) {
-	watchdog_reset_ch <- true      
+func ResetWatchdogTimer(watchdogResetCH chan bool, watchdogTimeoutCH chan bool) {
+	watchdogResetCH <- true 
+	//Signal that we are not currently in a state of watchdogTimeout:
+	watchdogTimeoutCH <- false     
 }
 
 
-func when_watchdog_timeout(watchdog_timeout_ch chan bool){
-	watchdog_timeout_ch <- true
+func signalWatchdogTimeout(watchdogTimeoutCH chan bool){
+	watchdogTimeoutCH <- true
+}
+
+
+
+//function is done
+//Floortimer is to make sure the time moving between floors is reasonable.
+func FloorTimer(
+	floorTimerResetCH chan bool,
+	floorTimerTimeoutCH chan bool,
+	floorTimerStopCH chan bool,
+	) {    
+	timer := time.NewTimer(def.FloorTimerTimeout * time.Millisecond)  
+	timer.Stop()
+	for {
+		select {
+		case <-floorTimerResetCH:
+			//drain timer.C before reset:
+			if (!timer.Stop()) {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(def.FloorTimerTimeout * time.Millisecond)
+		case <-timer.C:
+			signalFloorTimerTimeout(floorTimerTimeoutCH)
+		case <-floorTimerStopCH:
+			//drain timer.C and stop the timer, so that it doesnt sound the alarm.
+			if (!timer.Stop()) {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Stop()
+		}
+	}
+}
+
+
+func ResetFloorTimer(floorTimerResetCH chan bool, floorTimerTimeoutCH chan bool) {
+	floorTimerResetCH <- true 
+	//Signal that we do not currently have a FloorTimerTimeout:
+	floorTimerTimeoutCH <- false     
+}
+
+
+func signalFloorTimerTimeout(floorTimerTimeoutCH chan bool){
+	floorTimerTimeoutCH <- true
+}
+
+
+func StopFloorTimer(floorTimerStopCH chan bool, floorTimerTimeoutCH chan bool){
+	floorTimerStopCH <- true
+	//Signal that we do not currently have a FloorTimerTimeout:
+	floorTimerTimeoutCH <- false
 }
 
 

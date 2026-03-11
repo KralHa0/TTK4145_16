@@ -10,12 +10,15 @@ const (
 	NumButtons    = 3
 	BetweenFloors = -1 //a floor-value used under init.
 	GroundFloor   = 0
+	ColumnValueDown = 1
+	ColumnValueUp = 0
 	MsgFrq        = 100 * time.Millisecond
 	Addr          = "localhost"
 	Port          = 15657
 
 	DoorOpenTimeout = 3000 * time.Millisecond // door should be open for 3 seconds, then close
-	WatchdogTimeout = 5000 * time.Millisecond
+	WatchdogTimeout = 5000 * time.Millisecond // if state-machine-code is stuck somewhere for 5 seconds, alert.
+	FloorTimerTimeout = 4000 * time.Millisecond // if elevator uses to long moving between 2 adjacent floors, alert.
 )
 
 type PossibleStates int

@@ -104,22 +104,11 @@ func (o *OrderAssigner) Run() {
 			//main goroutine loop
 			for wv := range o.wvCh {
 
-				/*/hanlde at sender instead, use a non-blocking send
-						// a buffered channel of size 1, and non blocking send
-							// sender side (wherever worldviews are sent to wvCh):
-							select {
-							case wvCh <- wv:       // send if empty
-							default:               // drop old, send new
-							    <-wvCh
-							    wvCh <- wv
-							}
-
-					// Drain loop, handle only latest call
-				    //for len(o.wvCh) > 0 {
-				    //    wv = <-o.wvCh
-				    //}
-				*/
-
+				// Drain loop, handle only latest call
+				for len(o.wvCh) > 0 {
+				    wv = <-o.wvCh
+				}
+				
 				fmt.Println("Received new worldview, running cost function...")
 
 				if len(wv.Nodes) == 0 {
@@ -161,7 +150,13 @@ func (o *OrderAssigner) Run() {
 				fmt.Println("No errors during execution")
 				var assigned def.AssignedOrders
 				copy(assigned[:], output[o.ownID])
-				o.outputCh <- assigned
+
+				//send 
+				select {
+				case o.outputCh <- assigned:
+				default:
+				}
+
 			}
 			closedNormaly = true // only reached if channel closed normally
 		}()

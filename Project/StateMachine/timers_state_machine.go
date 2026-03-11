@@ -1,12 +1,13 @@
+package Statemachine
+
 import (
-	def "elevatorproject/definitions"
-	"elevatorproject/driver"
 	"time"
+
+	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-
-//function is done.
-//Doortimer is to know when to close the door, after it has been opened.
+// function is done.
+// Doortimer is to know when to close the door, after it has been opened.
 func DoorTimer(doorTimerResetCH chan bool, doorTimerTimeoutCH chan bool) {
 	timer := time.NewTimer(def.DoorOpenTimeout * time.Millisecond)
 	timer.Stop()
@@ -14,7 +15,7 @@ func DoorTimer(doorTimerResetCH chan bool, doorTimerTimeoutCH chan bool) {
 		select {
 		case <-doorTimerResetCH:
 			//drain timer.C before reset.
-			if (!timer.Stop()) {
+			if !timer.Stop() {
 				select {
 				case <-timer.C:
 				default:
@@ -27,28 +28,24 @@ func DoorTimer(doorTimerResetCH chan bool, doorTimerTimeoutCH chan bool) {
 	}
 }
 
-
 func ResetDoorTimer(doorTimerResetCH chan bool) {
 	doorTimerResetCH <- true
 }
 
-
-func signalDoortimeout(doorTimerTimeoutCH chan bool){
+func signalDoortimeout(doorTimerTimeoutCH chan bool) {
 	doorTimerTimeoutCH <- true
 }
 
-
-
-//function is done.
-//Watchdogtimer is to let the other elevators know, if the state-machine code is stuck/deadlock on this elevator.
+// function is done.
+// Watchdogtimer is to let the other elevators know, if the state-machine code is stuck/deadlock on this elevator.
 func WatchdogTimer(watchdogResetCH chan bool, watchdogTimeoutCH chan bool) {
-	timer := time.NewTimer(def.WatchdogTimeout * time.Millisecond)  
+	timer := time.NewTimer(def.WatchdogTimeout * time.Millisecond)
 	timer.Stop()
 	for {
 		select {
 		case <-watchdogResetCH:
 			//drain timer.C before reset.
-			if (!timer.Stop()) {
+			if !timer.Stop() {
 				select {
 				case <-timer.C:
 				default:
@@ -61,34 +58,30 @@ func WatchdogTimer(watchdogResetCH chan bool, watchdogTimeoutCH chan bool) {
 	}
 }
 
-
 func ResetWatchdogTimer(watchdogResetCH chan bool, watchdogTimeoutCH chan bool) {
-	watchdogResetCH <- true 
+	watchdogResetCH <- true
 	//Signal that we are not currently in a state of watchdogTimeout:
-	watchdogTimeoutCH <- false     
+	watchdogTimeoutCH <- false
 }
 
-
-func signalWatchdogTimeout(watchdogTimeoutCH chan bool){
+func signalWatchdogTimeout(watchdogTimeoutCH chan bool) {
 	watchdogTimeoutCH <- true
 }
 
-
-
-//function is done
-//Floortimer is to make sure the time moving between floors is reasonable.
+// function is done
+// Floortimer is to make sure the time moving between floors is reasonable.
 func FloorTimer(
 	floorTimerResetCH chan bool,
 	floorTimerTimeoutCH chan bool,
 	floorTimerStopCH chan bool,
-	) {    
-	timer := time.NewTimer(def.FloorTimerTimeout * time.Millisecond)  
+) {
+	timer := time.NewTimer(def.FloorTimerTimeout * time.Millisecond)
 	timer.Stop()
 	for {
 		select {
 		case <-floorTimerResetCH:
 			//drain timer.C before reset:
-			if (!timer.Stop()) {
+			if !timer.Stop() {
 				select {
 				case <-timer.C:
 				default:
@@ -99,7 +92,7 @@ func FloorTimer(
 			signalFloorTimerTimeout(floorTimerTimeoutCH)
 		case <-floorTimerStopCH:
 			//drain timer.C and stop the timer, so that it doesnt sound the alarm.
-			if (!timer.Stop()) {
+			if !timer.Stop() {
 				select {
 				case <-timer.C:
 				default:
@@ -110,35 +103,18 @@ func FloorTimer(
 	}
 }
 
-
 func ResetFloorTimer(floorTimerResetCH chan bool, floorTimerTimeoutCH chan bool) {
-	floorTimerResetCH <- true 
-	//Signal that we do not currently have a FloorTimerTimeout:
-	floorTimerTimeoutCH <- false     
-}
-
-
-func signalFloorTimerTimeout(floorTimerTimeoutCH chan bool){
-	floorTimerTimeoutCH <- true
-}
-
-
-func StopFloorTimer(floorTimerStopCH chan bool, floorTimerTimeoutCH chan bool){
-	floorTimerStopCH <- true
+	floorTimerResetCH <- true
 	//Signal that we do not currently have a FloorTimerTimeout:
 	floorTimerTimeoutCH <- false
 }
 
+func signalFloorTimerTimeout(floorTimerTimeoutCH chan bool) {
+	floorTimerTimeoutCH <- true
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
+func StopFloorTimer(floorTimerStopCH chan bool, floorTimerTimeoutCH chan bool) {
+	floorTimerStopCH <- true
+	//Signal that we do not currently have a FloorTimerTimeout:
+	floorTimerTimeoutCH <- false
+}

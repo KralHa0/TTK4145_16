@@ -5,6 +5,7 @@ package Statemachine
 import (
 	"Driver-go/elevio"
 	"fmt"
+	"reflect"
 	"time"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
@@ -653,13 +654,16 @@ func sendMalfunctionStatus(
 // function is done
 func SetAllLights(wvCh <-chan def.Worldview) {
 	ID := nw.GetIp()
+	var oldWv def.Worldview
 	for wv := range wvCh {
-		for _, node := range wv.Nodes {
-			if node.ID == ID {
-				checkAllLights(node, wv)
+		if !reflect.DeepEqual(oldWv, wv) {
+			for _, node := range wv.Nodes {
+				if node.ID == ID {
+					checkAllLights(node, wv)
+				}
 			}
+			oldWv = wv
 		}
-
 	}
 }
 
@@ -686,5 +690,6 @@ func checkAllLights(node def.Node, wv def.Worldview) {
 		} else {
 			elevio.SetButtonLamp(elevio.BT_HallDown, floor, false)
 		}
+
 	}
 }

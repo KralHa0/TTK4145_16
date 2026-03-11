@@ -68,6 +68,8 @@ func UpdaterRun(
 ) {
 	ticker := time.NewTicker(def.MsgFrq)
 	defer ticker.Stop()
+	oraTicker := time.NewTicker(def.OraFrq)
+	defer oraTicker.Stop()
 
 	for {
 		select {
@@ -81,6 +83,12 @@ func UpdaterRun(
 			case networkWvCh <- wvCopy:
 			default:
 			}
+
+		// Periodic ORA re-evaluation
+		case <-oraTicker.C:
+			localWvMu.RLock()
+			sendToOrderHandler(orderHandlerWvCh)
+			localWvMu.RUnlock()
 
 		// Merge incoming peer worldview
 		case peerWv := <-peerWvCh:
@@ -164,9 +172,9 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 				}
 			}
 
-			// Complete -> NoCall: all alive peers confirm Complete, or peer already reset
+			// Complete -> NoCall: all alive peers confirm Complete
 			if localWv.HallRequests[floor][dir] == def.Complete {
-				if allAliveHallAtOrAbove(floor, dir, def.Complete, aliveList) || peer == def.NoCall {
+				if allAliveHallAtOrAbove(floor, dir, def.Complete, aliveList) {
 					if validTransition(localWv.HallRequests[floor][dir], def.NoCall) {
 						localWv.HallRequests[floor][dir] = def.NoCall
 					}
@@ -209,8 +217,7 @@ func applyCompletion(floor int, dir def.DirectionUpDown) {
 	}
 
 	// Cab requests are local-only — clear immediately, no peer consensus needed
-	cabCur := localNode().CabRequests[floor]
-	if validTransition(cabCur, def.NoCall) {
+	if localNode().CabRequests[floor] != def.NoCall {
 		localNode().CabRequests[floor] = def.NoCall
 	}
 }
@@ -225,6 +232,9 @@ func allAliveHallAtOrAbove(
 	threshold def.OrderState,
 	aliveList def.AliveList,
 ) bool {
+	if len(aliveList.Peers) == 0 {
+		return false
+	}
 	for peerID, alive := range aliveList.Peers {
 		if !alive {
 			continue

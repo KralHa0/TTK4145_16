@@ -16,7 +16,7 @@ const (
 )
 
 var (
-	stateTx        = make(chan def.Worldview)
+	stateTx        = make(chan def.Worldview, 10)
 	stateRx        = make(chan def.Worldview)
 	peerUpdateRx   = make(chan peers.PeerUpdate)
 	transmitEnable = make(chan bool)

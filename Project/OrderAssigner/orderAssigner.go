@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -53,12 +52,14 @@ func NewOrderAssigner(
 	wvCh <-chan def.Worldview,
 	outputCh chan<- def.AssignedOrders,
 ) *OrderAssigner {
+	_, srcFile, _, _ := runtime.Caller(0)
+	srcDir := filepath.Dir(srcFile)
 	exe := ""
 	switch runtime.GOOS {
 	case "linux":
-		exe = filepath.Join("OrderAssigner", "hall_request_assigner")
+		exe = filepath.Join(srcDir, "hall_request_assigner")
 	case "windows":
-		exe = filepath.Join("OrderAssigner", "hall_request_assigner.exe")
+		exe = filepath.Join(srcDir, "hall_request_assigner.exe")
 	default:
 		panic("OS not supported")
 	}
@@ -119,6 +120,7 @@ func (o *OrderAssigner) Run() {
 				}
 
 				input := o.worldviewToORAInput(wv)
+				checkORAInput(input)
 
 				jsonBytes, err := makeExecutableInput(input)
 				if err != nil {
@@ -141,6 +143,8 @@ func (o *OrderAssigner) Run() {
 					continue
 				}
 
+				checkORAOutputMap(output, wv)
+
 				// traditional testing turn into acc test
 				if _, ok := output[o.ownID]; !ok {
 					fmt.Println("OrderAssigner: own ID not in output, skipping")
@@ -148,6 +152,7 @@ func (o *OrderAssigner) Run() {
 				}
 
 				insertCabCallsIntoOutput(output[o.ownID], wv, o.ownID)
+				checkOwnOutput(output[o.ownID], wv, o.ownID)
 
 				fmt.Println("No errors during execution")
 				var assigned def.AssignedOrders
@@ -195,11 +200,7 @@ func makeExecutableInput(input ORAInput) ([]byte, error) {
 }
 
 func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("could not get working directory: %w", err)
-	}
-	exePath := filepath.Join(cwd, o.executable)
+	exePath := o.executable
 
 	ctx, cancel := context.WithTimeout(context.Background(), oraTimeout)
 	defer cancel()
@@ -249,7 +250,7 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 		}
 	}
 	return boolRequests
-} /*TODO: make acc test */
+}
 
 // convert node type to executable Elevstate
 func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
@@ -277,7 +278,7 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 	}
 
 	return States
-} /*TODO: make acc test */
+}
 
 // convert from dirtype to executabe string
 func directionToString(d elevio.MotorDirection) string {

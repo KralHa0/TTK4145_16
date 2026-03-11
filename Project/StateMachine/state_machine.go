@@ -7,17 +7,17 @@ import (
 	"fmt"
 	"time"
 
-	def "github.com/KralHa0/TTK4145_16/Project/Definitions" //problem: cannot build program, because paths are wrong.
+	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 )
 
 // function is done
 // copilot says its okay
 func InitStateMachine(
-	malfunctionStatusCH chan bool, //---------------------make sure this is buffered.
-	clearOrderCH chan def.OrderMessage, //---------------------make sure this is buffered.
-	buttonEventCH chan elevio.ButtonEvent, //---------feil type. havn vil ha clearordermessage
-	costFunctionOutputCH <-chan [def.NumFloors][2]bool,
+	malfunctionStatusCH chan bool,
+	clearOrderCH chan def.FsmClearOrderMessage,
+	buttonEventCH chan elevio.ButtonEvent,
+	costFunctionOutputCH <-chan def.AssignedOrders,
 	worldviewCH chan def.Worldview,
 ) {
 	// Initialize elevio/hardware
@@ -150,7 +150,7 @@ func controlElevatorStateMachine(
 	floorTimerResetCH chan bool,
 	floorTimerStopCH chan bool,
 	floorTimerTimeoutCH chan bool,
-	clearOrderCH chan def.OrderMessage,
+	clearOrderCH chan def.FsmClearOrderMessage,
 	requestLatestDestinationCH chan def.OrderMessage,
 	receiveLatestDestinationCH chan def.OrderMessage,
 ) {
@@ -328,14 +328,14 @@ func getElevatorDirection(
 // go-function is done.
 // copilot says its okay
 func produceNextElevatorDestination(
-	costFunctionOutputCH <-chan [def.NumFloors][2]bool, //receive only.
+	costFunctionOutputCH <-chan def.AssignedOrders, //receive only.
 	currentElevatorPositionCH <-chan def.OrderMessage, //receive only.
 	latestDestinationCH chan<- def.OrderMessage, //send only. it sends where elevator should go next.
 ) {
 	var heardFromElevator bool = false
 	var heardFromCostfunction bool = false
 	var elevatorMovement def.OrderMessage
-	var costfunctionOutput [def.NumFloors][2]bool
+	var costfunctionOutput def.AssignedOrders
 	var newDestination def.OrderMessage
 	//main loop:
 	for {
@@ -375,7 +375,7 @@ func produceNextElevatorDestination(
 // copilot says its okay
 func findClosestOrderInAnyDirection(
 	elevatorMovement def.OrderMessage,
-	costfunctionOutput [def.NumFloors][2]bool,
+	costfunctionOutput def.AssignedOrders,
 ) def.OrderMessage {
 	var elevatorOrder def.OrderMessage
 	var floorToCheck int
@@ -427,7 +427,7 @@ func findClosestOrderInAnyDirection(
 // copilot says its okay
 func findClosestDestinationGivenCurrentDirectionDirection(
 	elevatorMovement def.OrderMessage,
-	costfunctionOutput [def.NumFloors][2]bool,
+	costfunctionOutput def.AssignedOrders,
 ) def.OrderMessage {
 	var closestDestination def.OrderMessage
 
@@ -484,7 +484,7 @@ func findClosestDestinationGivenCurrentDirectionDirection(
 // function is done
 // copilot says its okay
 func orderCount(
-	costfunctionOutput [def.NumFloors][2]bool,
+	costfunctionOutput def.AssignedOrders,
 ) int {
 	var nrOfOrders int = 0
 	var nrOfRows = len(costfunctionOutput)
@@ -567,12 +567,16 @@ func provideLatestDestination(
 func clearOrder(
 	clearedFloor int,
 	clearedDirection elevio.MotorDirection,
-	clearOrderCH chan<- def.OrderMessage, //send only
+	clearOrderCH chan<- def.FsmClearOrderMessage, //send only
 ) {
 	//put floor and dir into one struct-instance
-	var clearedMessage def.OrderMessage
+	var clearedMessage def.FsmClearOrderMessage
 	clearedMessage.Floor = clearedFloor
-	clearedMessage.Direction = clearedDirection
+	clearedOrderUpDown, complete := def.DirFromMotor(clearedDirection)
+	if complete == false {
+		fmt.Println("[ERROR] Direction into dirFromMotor is MD_stop")
+	}
+	clearedMessage.Dir = clearedOrderUpDown
 	//send it to order manager
 	clearOrderCH <- clearedMessage
 }
@@ -625,13 +629,13 @@ func sendMalfunctionStatus(
 		//only send an update on channel, if there has been a change, or on startup.
 		if (newMalfunctionStatus != currentMalfunctionStatus) || FirstTransmission {
 			currentMalfunctionStatus = newMalfunctionStatus
-			malfunctionStatusCH <- currentMalfunctionStatus //-----------------------this is blocking. make sure someone checks.
+			malfunctionStatusCH <- currentMalfunctionStatus
 			FirstTransmission = false
 		}
 	}
 }
 
-// function is not done ---------------------------------------------------------------------to do. Make Go function in init
+// function is done
 func SetAllLights(wvCh <-chan def.Worldview) {
 	ID := nw.GetIp()
 	for wv := range wvCh {
@@ -644,6 +648,7 @@ func SetAllLights(wvCh <-chan def.Worldview) {
 	}
 }
 
+// function is done
 func checkAllLights(node def.Node, wv def.Worldview) {
 	for floor := 0; floor < def.NumFloors; floor++ {
 		// cabrequests
@@ -661,7 +666,7 @@ func checkAllLights(node def.Node, wv def.Worldview) {
 		}
 
 		// hallrequests Down
-		if wv.HallRequests[floor][def.DirUp] == def.Acknowledged {
+		if wv.HallRequests[floor][def.DirDown] == def.Acknowledged {
 			elevio.SetButtonLamp(elevio.BT_HallDown, floor, true)
 		} else {
 			elevio.SetButtonLamp(elevio.BT_HallDown, floor, false)

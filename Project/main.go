@@ -7,7 +7,7 @@ import (
 	"os"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
-	//fsm "github.com/KralHa0/TTK4145_16/Project/FSM"
+	fsm "github.com/KralHa0/TTK4145_16/Project/StateMachine"
 	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 	oa "github.com/KralHa0/TTK4145_16/Project/OrderAssigner"
 	om "github.com/KralHa0/TTK4145_16/Project/OrderManager"
@@ -59,8 +59,8 @@ func runFullSystem() {
 	oaToFsmCh := make(chan def.AssignedOrders, 10) // Cost function output
 
 	// FSM -> OrderManager
-	fsmButtonEventToOaCh := make(chan elevio.ButtonEvent, 10) // New button calls
-	fsmClearOrderToOaCh := make(chan def.FsmClearOrderMessage, 10) // Completed orders
+	fsmButtonEventToOmCh := make(chan elevio.ButtonEvent, 10) // New button calls
+	fsmClearOrderToOmCh := make(chan def.FsmClearOrderMessage, 10) // Completed orders
 	fsmElevStateCh := make(chan def.Elevator, 10)             // Current elevator state
 	malfunctionCh := make(chan bool, 10)                      // Malfunction toggles
 
@@ -89,8 +89,8 @@ func runFullSystem() {
 	// OrderManager: single owner of worldview state
 	go om.UpdaterRun(
 		networkToOmWvCh,      // peerWvCh
-		fsmClearOrderToOaCh,  // orderCompleteCh
-		fsmButtonEventToOaCh, // newOrderCh
+		fsmClearOrderToOmCh,  // orderCompleteCh
+		fsmButtonEventToOmCh, // newOrderCh
 		omToNetworkWvCh,      // networkWvCh
 		omToOraWvCh,          // orderHandlerWvCh
 		omToFsmWvCh,          // omToFsmWvCh
@@ -106,14 +106,13 @@ func runFullSystem() {
 	go orderAssigner.Run()
 
 	// FSM: drives hardware, reports new orders and completions to OM
-	/*go fsm.Run(
-		oaToFsmCh,
-		fsmButtonEventToOaCh,
-		fsmClearOrderToOaCh,
-		fsmElevStateCh,
+	go fsm.InitStateMachine(
 		malfunctionCh,
-		localID,
-	)*/
+		fsmClearOrderToOmCh,
+		fsmButtonEventToOmCh,
+		oaToFsmCh,
+		omToFsmWvCh,
+	)
 
 	fmt.Println("System running.")
 	select {}

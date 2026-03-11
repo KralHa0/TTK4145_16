@@ -41,7 +41,7 @@ type ORAElevState struct {
 }
 
 type ORAInput struct {
-	HallRequests [][2]bool               `json:"hallRequests"`
+	HallRequests [][2]bool              `json:"hallRequests"`
 	States       map[string]ORAElevState `json:"states"`
 }
 
@@ -106,9 +106,9 @@ func (o *OrderAssigner) Run() {
 
 				// Drain loop, handle only latest call
 				for len(o.wvCh) > 0 {
-				    wv = <-o.wvCh
+					wv = <-o.wvCh
 				}
-				
+
 				fmt.Println("Received new worldview, running cost function...")
 
 				if len(wv.Nodes) == 0 {
@@ -117,6 +117,7 @@ func (o *OrderAssigner) Run() {
 				}
 
 				input := o.worldviewToORAInput(wv)
+				checkORAInput(input)
 
 				jsonBytes, err := makeExecutableInput(input)
 				if err != nil {
@@ -139,6 +140,8 @@ func (o *OrderAssigner) Run() {
 					continue
 				}
 
+				checkORAOutputMap(output, wv)
+
 				// traditional testing turn into acc test
 				if _, ok := output[o.ownID]; !ok {
 					fmt.Println("OrderAssigner: own ID not in output, skipping")
@@ -146,12 +149,13 @@ func (o *OrderAssigner) Run() {
 				}
 
 				insertCabCallsIntoOutput(output[o.ownID], wv, o.ownID)
+				checkOwnOutput(output[o.ownID], wv, o.ownID)
 
 				fmt.Println("No errors during execution")
 				var assigned def.AssignedOrders
 				copy(assigned[:], output[o.ownID])
 
-				//send 
+				//send
 				select {
 				case o.outputCh <- assigned:
 				default:
@@ -243,7 +247,7 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 		}
 	}
 	return boolRequests
-} /*TODO: make acc test */
+}
 
 // convert node type to executable Elevstate
 func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
@@ -271,7 +275,7 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 	}
 
 	return States
-} /*TODO: make acc test */
+}
 
 // convert from dirtype to executabe string
 func directionToString(d elevio.MotorDirection) string {

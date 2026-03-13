@@ -93,7 +93,7 @@ func UpdaterRun(
 
 		// Merge incoming peer worldview
 		case peerWv := <-peerWvCh:
-			printIncomingWv(peerWv)
+			//printIncomingWv(peerWv)
 			localWvMu.Lock()
 			reachedAck := mergePeerWorldview(peerWv, getAliveList())
 			if reachedAck {

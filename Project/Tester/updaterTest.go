@@ -43,6 +43,7 @@ func RunOMTest() {
 		return def.AliveList{Peers: copyMap}
 	}
 
+	fsmElevStateCh := make(chan def.Elevator)
 	go om.UpdaterRun(
 		peerWvCh,
 		orderCompleteCh,
@@ -52,6 +53,7 @@ func RunOMTest() {
 		omToFsmWvCh,
 		getAliveList,
 		malfunctionCh,
+		fsmElevStateCh,
 	)
 	go drainNetwork(omToFsmWvCh)
 

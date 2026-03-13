@@ -37,6 +37,7 @@ func RunORAOMTest() {
 		return def.AliveList{Peers: map[def.NodeID]bool{localID: true}}
 	}
 
+	fsmElevStateCh := make(chan def.Elevator)
 	go om.UpdaterRun(
 		peerWvCh,
 		orderCompleteCh,
@@ -46,6 +47,7 @@ func RunORAOMTest() {
 		omToFsmWvCh,
 		getAliveList,
 		malfunctionCh,
+		fsmElevStateCh,
 	)
 
 	// Self-feedback: OM's outgoing broadcast feeds back as a peer worldview.

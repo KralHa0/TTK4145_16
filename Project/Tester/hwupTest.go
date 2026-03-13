@@ -41,6 +41,7 @@ func RunTest() {
 		}
 	}()
 
+	fsmElevStateCh := make(chan def.Elevator)
 	go om.UpdaterRun(
 		peerWvCh,
 		orderCompleteCh,
@@ -50,6 +51,7 @@ func RunTest() {
 		omToFsmWvCh,
 		nw.GetAliveList,
 		malfunctionCh,
+		fsmElevStateCh,
 	)
 	go drainNetwork(omToFsmWvCh)
 

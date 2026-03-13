@@ -106,10 +106,10 @@ func UpdaterRun(
 			reachedAck := mergePeerWorldview(peerWv, getAliveList())
 			if reachedAck {
 				sendToOrderHandler(orderHandlerWvCh)
-				PrintWv(GetLocalWv())
 			}
 			sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
+			PrintWv(GetLocalWv())
 
 		// New button press from FSM
 		case newOrder := <-newOrderCh:

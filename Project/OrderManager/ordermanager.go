@@ -88,6 +88,7 @@ func UpdaterRun(
 		case <-oraTicker.C:
 			localWvMu.RLock()
 			sendToOrderHandler(orderHandlerWvCh)
+			PrintWv(GetLocalWv())
 			localWvMu.RUnlock()
 
 		// Merge incoming peer worldview
@@ -97,7 +98,6 @@ func UpdaterRun(
 			if reachedAck {
 				sendToOrderHandler(orderHandlerWvCh)
 			}
-			//fmt.Println("GetFromNW")
 			sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
 
@@ -106,14 +106,13 @@ func UpdaterRun(
 			localWvMu.Lock()
 			applyNewOrder(newOrder)
 			sendToOrderHandler(orderHandlerWvCh)
-			//sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
+			PrintWv(GetLocalWv())
 
 		// Order completion from FSM
 		case orderMsg := <-orderCompleteCh:
 			localWvMu.Lock()
 			applyCompletion(orderMsg.Floor, orderMsg.Dir)
-			//sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
 
 		case malfunction := <-malfunctionCh:
@@ -296,7 +295,7 @@ func GetLocalWv() def.Worldview {
 func sendToOrderHandler(orderHandlerWvCh chan<- def.Worldview) {
 	select {
 	case orderHandlerWvCh <- deepCopyWorldview(localWv):
-		fmt.Println("Sending to ORA")
+		fmt.Println("[OM] Sending to ORA")
 	default:
 	}
 }

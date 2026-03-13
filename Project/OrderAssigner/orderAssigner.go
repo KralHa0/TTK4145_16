@@ -112,7 +112,7 @@ func (o *OrderAssigner) Run() {
 					wv = <-o.wvCh
 				}
 
-				fmt.Println("Received new worldview, running cost function...")
+				//fmt.Println("Received new worldview, running cost function...")
 
 				if len(wv.Nodes) == 0 {
 					fmt.Println("OrderAssigner: skipping worldview with no nodes")
@@ -154,7 +154,7 @@ func (o *OrderAssigner) Run() {
 				insertCabCallsIntoOutput(output[o.ownID], wv, o.ownID)
 				checkOwnOutput(output[o.ownID], wv, o.ownID)
 
-				fmt.Println("No errors during execution")
+				//fmt.Println("No errors during execution")
 				var assigned def.AssignedOrders
 				copy(assigned[:], output[o.ownID])
 

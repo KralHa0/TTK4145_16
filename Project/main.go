@@ -112,7 +112,7 @@ func runFullSystem() {
 		fsmButtonEventToOmCh,
 		oaToFsmCh,
 		omToFsmWvCh,
-		fsmToOMElevStateCh
+		fsmToOMElevStateCh,
 	)
 
 	fmt.Println("System running.")

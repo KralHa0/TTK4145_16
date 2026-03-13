@@ -24,6 +24,11 @@ var (
 // for use in allAliveHallAtOrAbove consensus checks.
 var peerWorldviews = make(map[def.NodeID]def.Worldview)
 
+// cabCallKnown tracks floors where we have definitive local knowledge of the
+// cab call state (registered or cleared by us). Only false on fresh startup,
+// which is the only time peer recovery should be trusted.
+var cabCallKnown [def.NumFloors]bool
+
 // localNode returns a pointer to the local node, panicking if not initialised.
 func localNode() *def.Node {
 	if len(localWv.Nodes) == 0 {
@@ -51,6 +56,7 @@ func OrderManagerInit(localNodeID def.NodeID, initialCabRequests [def.NumFloors]
 		},
 		HallRequests: [def.NumFloors][2]def.OrderState{},
 	}
+	cabCallKnown = [def.NumFloors]bool{}
 }
 
 // --------------------------------------------------
@@ -115,6 +121,8 @@ func UpdaterRun(
 		case orderMsg := <-orderCompleteCh:
 			localWvMu.Lock()
 			applyCompletion(orderMsg.Floor, orderMsg.Dir)
+			sendToOrderHandler(orderHandlerWvCh)
+			sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
 
 		case malfunction := <-malfunctionCh:
@@ -144,11 +152,14 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 			continue
 		}
 		if peerNode.ID == localNode().ID {
-			// Recover our own cab calls from peer memory on reconnect:
-			// if we lost state (NoCall) but a peer still remembers an active call, adopt it.
+			// Recover our own cab calls from peer memory on reconnect.
+			// Only apply if we have no local knowledge of that floor's state
+			// (cabCallKnown is false only on fresh startup). This prevents
+			// stale peer worldviews from re-activating calls we already served.
 			for f := 0; f < def.NumFloors; f++ {
-				if localNode().CabRequests[f] == def.NoCall && peerNode.CabRequests[f] == def.Acknowledged {
+				if !cabCallKnown[f] && localNode().CabRequests[f] == def.NoCall && peerNode.CabRequests[f] == def.Acknowledged {
 					localNode().CabRequests[f] = def.Acknowledged
+					cabCallKnown[f] = true
 				}
 			}
 			continue
@@ -228,6 +239,7 @@ func applyNewOrder(msg elevio.ButtonEvent) {
 		// Cab calls are local-only — set Acknowledged directly, no consensus needed
 		if localNode().CabRequests[msg.Floor] == def.NoCall {
 			localNode().CabRequests[msg.Floor] = def.Acknowledged
+			cabCallKnown[msg.Floor] = true
 		}
 	} else {
 		// BT_HallUp=0 maps to dir index 0, BT_HallDown=1 maps to dir index 1
@@ -252,6 +264,7 @@ func applyCompletion(floor int, dir def.DirectionUpDown) {
 	// Cab requests are local-only — clear immediately, no peer consensus needed
 	if localNode().CabRequests[floor] != def.NoCall {
 		localNode().CabRequests[floor] = def.NoCall
+		cabCallKnown[floor] = true
 	}
 }
 

@@ -387,6 +387,10 @@ func PrintWv(wv def.Worldview) {
 	fmt.Printf("%-6s  %-4s  %-4s", "", "", "")
 	for _, node := range wv.Nodes {
 		alivelist := nw.GetAliveList()
+		f := "F"
+		if alivelist.Peers[node.ID] == true {
+			f = "T"
+		}
 		e := node.Elevator
 		dir := dirStr[int(e.Direction)]
 		state := "?"
@@ -395,9 +399,9 @@ func PrintWv(wv def.Worldview) {
 		}
 		malf := "OK"
 		if e.Malfunctioned {
-			malf = "MALF"
+			malf = "MF"
 		}
-		info := fmt.Sprintf("%t %s %s %s", alivelist.Peers[node.ID], dir, state, malf)
+		info := fmt.Sprintf("%s %s %s %s", f, dir, state, malf)
 		fmt.Printf("  %-*s", colW, info)
 	}
 	fmt.Println()

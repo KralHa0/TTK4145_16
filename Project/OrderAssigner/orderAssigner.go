@@ -174,7 +174,7 @@ func (o *OrderAssigner) Run() {
 func (o *OrderAssigner) worldviewToORAInput(w def.Worldview) (ORAInput, error) {
 	input := ORAInput{
 		HallRequests: hallrequestToBool(w.HallRequests),
-		States:       makeORAStateMap(w.Nodes),
+		States:       makeORAStateMap(w.Nodes, o.ownID),
 	}
 	return input, nil
 }
@@ -238,13 +238,17 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 }
 
 // convert node type to executable Elevstate
-func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
+func makeORAStateMap(nodes []def.Node, ownID def.NodeID) map[string]ORAElevState {
 	States := make(map[string]ORAElevState)
 	for _, node := range nodes {
 		if !node.ID.IsValid() {
 			continue
 		}
-		if !isNodeAvailable(node) {
+		if node.ID == ownID {
+			if node.Elevator.Malfunctioned {
+				continue
+			}
+		} else if !isNodeAvailable(node) {
 			continue
 		}
 

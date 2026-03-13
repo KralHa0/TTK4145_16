@@ -59,9 +59,10 @@ func runFullSystem() {
 	oaToFsmCh := make(chan def.AssignedOrders, 10) // Cost function output
 
 	// FSM -> OrderManager
-	fsmButtonEventToOmCh := make(chan elevio.ButtonEvent, 10) // New button calls
-	fsmClearOrderToOmCh := make(chan def.FsmClearOrderMessage, 10) // Completed orders
-	malfunctionCh := make(chan bool, 10)                      // Malfunction toggles
+	fsmButtonEventToOmCh := make(chan elevio.ButtonEvent, 10)       // New button calls
+	fsmClearOrderToOmCh := make(chan def.FsmClearOrderMessage, 10)  // Completed orders
+	malfunctionCh := make(chan bool, 10)                            // Malfunction toggles
+	fsmToOMElevStateCh := make(chan def.Elevator, 10)               // Elevator state updates
 
 	// ------------------------------------------------
 	// Goroutines
@@ -95,6 +96,7 @@ func runFullSystem() {
 		omToFsmWvCh,          // omToFsmWvCh
 		nw.GetAliveList,      // getAliveList
 		malfunctionCh,        // malfunctionCh
+		fsmToOMElevStateCh,   // fsmElevStateCh
 	)
 
 	// OrderAssigner: runs cost function on acknowledged worldview,

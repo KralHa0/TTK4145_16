@@ -72,6 +72,7 @@ func UpdaterRun(
 	omToFsmWvCh chan<- def.Worldview,
 	getAliveList func() def.AliveList,
 	malfunctionCh <-chan bool,
+	fsmElevStateCh <-chan def.Elevator,
 ) {
 	ticker := time.NewTicker(def.MsgFrq)
 	defer ticker.Stop()
@@ -132,6 +133,18 @@ func UpdaterRun(
 			localWvMu.Lock()
 			localNode().Elevator.Malfunctioned = malfunction
 			localWvMu.Unlock()
+
+		case elevState := <-fsmElevStateCh:
+			localWvMu.Lock()
+			localNode().Elevator.CurrentFloor = elevState.CurrentFloor
+			localNode().Elevator.Direction = elevState.Direction
+			localNode().Elevator.ElevState = elevState.ElevState
+			wvCopy := deepCopyWorldview(localWv)
+			localWvMu.Unlock()
+			select {
+			case networkWvCh <- wvCopy:
+			default:
+			}
 		}
 
 	}

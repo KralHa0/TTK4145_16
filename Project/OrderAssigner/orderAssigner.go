@@ -108,7 +108,7 @@ func (o *OrderAssigner) Run() {
 				}
 
 				//fmt.Println("JSON being sent to executable:")
-				fmt.Println("\n", string(jsonBytes))
+				//fmt.Println("\n", string(jsonBytes))
 
 				costFuncResult, err := o.runORAExecutable(jsonBytes)
 				if err != nil {

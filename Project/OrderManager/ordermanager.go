@@ -316,3 +316,81 @@ func deepCopyWorldview(src def.Worldview) def.Worldview {
 	copyWv.Nodes = nodesCopy
 	return copyWv
 }
+
+// --------------------------------------------------
+// Print helpers
+// --------------------------------------------------
+
+func orderStateStr(s def.OrderState) string {
+	switch s {
+	case def.NoCall:
+		return "N"
+	case def.Exist:
+		return "E"
+	case def.Acknowledged:
+		return "A"
+	case def.Complete:
+		return "C"
+	default:
+		return "?"
+	}
+}
+
+// PrintNode prints a single node's ID, elevator state, and cab requests.
+func PrintNode(node def.Node) {
+	stateStr := []string{"Moving", "Idle", "DoorOpen"}
+	state := "?"
+	if int(node.Elevator.ElevState) < len(stateStr) {
+		state = stateStr[node.Elevator.ElevState]
+	}
+	fmt.Printf("Node %-20s floor=%-2d dir=%-5v state=%-8s malfunction=%v\n",
+		node.ID, node.Elevator.CurrentFloor, node.Elevator.Direction, state, node.Elevator.Malfunctioned)
+	fmt.Printf("  CabRequests: ")
+	for f := 0; f < def.NumFloors; f++ {
+		fmt.Printf("[%d:%s]", f, orderStateStr(node.CabRequests[f]))
+	}
+	fmt.Println()
+}
+
+// PrintHallCalls prints the hall requests table (floor, Up, Down).
+func PrintHallCalls(hallRequests [def.NumFloors][2]def.OrderState) {
+	fmt.Printf("%-6s  %-4s  %-4s\n", "Floor", "Up", "Down")
+	for f := 0; f < def.NumFloors; f++ {
+		fmt.Printf("%-6d  %-4s  %-4s\n", f,
+			orderStateStr(hallRequests[f][def.DirUp]),
+			orderStateStr(hallRequests[f][def.DirDown]))
+	}
+}
+
+// PrintWv prints the full worldview as a table: hall calls (Up/Down) as the
+// first column group, followed by one column per node (cab request per floor).
+func PrintWv(wv def.Worldview) {
+	const colW = 14
+	// Header
+	fmt.Printf("%-6s  %-4s  %-4s", "Floor", "Up", "Dn")
+	for _, node := range wv.Nodes {
+		id := string(node.ID)
+		if len(id) > colW {
+			id = id[:colW]
+		}
+		fmt.Printf("  %-*s", colW, id)
+	}
+	fmt.Println()
+	// Separator
+	sepLen := 18 + len(wv.Nodes)*(colW+2)
+	for i := 0; i < sepLen; i++ {
+		fmt.Print("-")
+	}
+	fmt.Println()
+	// One row per floor
+	for f := 0; f < def.NumFloors; f++ {
+		fmt.Printf("%-6d  %-4s  %-4s",
+			f,
+			orderStateStr(wv.HallRequests[f][def.DirUp]),
+			orderStateStr(wv.HallRequests[f][def.DirDown]))
+		for _, node := range wv.Nodes {
+			fmt.Printf("  %-*s", colW, orderStateStr(node.CabRequests[f]))
+		}
+		fmt.Println()
+	}
+}

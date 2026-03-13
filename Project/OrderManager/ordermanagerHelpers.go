@@ -90,7 +90,7 @@ func PrintWv(wv def.Worldview) {
 		if e.Malfunctioned {
 			malf = "MF"
 		}
-		info := fmt.Sprintf("%s %s %s %s", f, dir, state, malf)
+		info := fmt.Sprintf("%s%d %s %s %s", f, e.CurrentFloor, dir, state, malf)
 		fmt.Printf("  %-*s", colW, info)
 	}
 	fmt.Println()
@@ -123,8 +123,6 @@ func printIncomingWv(wv def.Worldview) {
 	fmt.Printf("[OM] Incoming WV from %s:\n", wv.Nodes[0].ID)
 	PrintWv(wv)
 }
-
-
 
 // --------------------------------------------------
 // Internal helpers

@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"Driver-go/elevio"
+	"Network-go/network/peers"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
+	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 )
 
 /* to run, call:
@@ -50,6 +52,9 @@ func TestRunORA(t *testing.T) {
 			},
 		},
 	}
+
+	nw.UpdateAliveList(peers.PeerUpdate{New: "one"})
+	nw.UpdateAliveList(peers.PeerUpdate{New: "two"})
 
 	a := NewOrderAssigner("one", wvCh, hraOutputCh)
 	go a.Run()

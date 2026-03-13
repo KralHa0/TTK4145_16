@@ -11,6 +11,7 @@ import (
 	"time"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
+	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 )
 
 // Interface:
@@ -24,9 +25,9 @@ const oraTimeout = 2 * time.Second
 // Type Struct:
 type OrderAssigner struct {
 	wvCh       <-chan def.Worldview
-	outputCh   chan<- def.AssignedOrders //TODO: make separate struct to cohesefy this/ abstraction
+	outputCh   chan<- def.AssignedOrders
 	executable string
-	ownID      def.NodeID //implement stufff yippi
+	ownID      def.NodeID
 }
 
 /*TODO:
@@ -71,29 +72,7 @@ func NewOrderAssigner(
 	}
 }
 
-/*
-Public met: Run the cost function, is called once to initilize
-
-			TODO:
-			- add timeout
-			- panic recovery
-				implemented, but need to restart the gorutine
-				how do we do that, from main, or in the Run func
-
-			- buffered channels for begge, slik at den ikke blokkerer hvis den får flere worldviews før den er ferdig med å kjøre kostfunksjonen.
-			- pass på at du leser og tømmer siste sending i wvCh buffer. Hvis du får flere worldviews før du er ferdig med å kjøre kostfunksjonen, vil du bare tømme bufferet og bruke den siste worldviewen som input til kostfunksjonen.
-
-			for wv := range o.wvCh {
-		    // drain to get latest
-		    for len(o.wvCh) > 0 {
-		        wv = <-o.wvCh
-		    }
-		    // ... process wv
-		}
-
-	  - add input validation
-	  - check that wv is not empty, and that make ORAstateMap is not empty
-*/
+// start running the order assigner
 func (o *OrderAssigner) Run() {
 	for {
 		closedNormaly := false
@@ -112,7 +91,7 @@ func (o *OrderAssigner) Run() {
 					wv = <-o.wvCh
 				}
 
-				//fmt.Println("Received new worldview, running cost function...")
+				////fmt.Println("Received new worldview, running cost function...")
 
 				if len(wv.Nodes) == 0 {
 					fmt.Println("OrderAssigner: skipping worldview with no nodes")
@@ -216,12 +195,12 @@ func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
 
 // rename to better name
 func makeResult(ret []byte) (map[def.NodeID][][2]bool, error) {
-	outputMap := new(map[def.NodeID][][2]bool)
-	err := json.Unmarshal(ret, outputMap)
+	var outputMap map[def.NodeID][][2]bool
+	err := json.Unmarshal(ret, &outputMap)
 	if err != nil {
 		return nil, fmt.Errorf("json.Unmarshal error: %w", err)
 	}
-	return *outputMap, nil
+	return outputMap, nil
 }
 
 // make subfunc of unmarshal thing
@@ -245,11 +224,7 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 	boolRequests := make([][2]bool, def.NumFloors)
 	for floor := 0; floor < def.NumFloors; floor++ {
 		for dir := 0; dir < 2; dir++ {
-			if hallRequests[floor][dir] == def.Acknowledged {
-				boolRequests[floor][dir] = true
-			} else {
-				boolRequests[floor][dir] = false
-			}
+			boolRequests[floor][dir] = hallRequests[floor][dir] == def.Acknowledged
 		}
 	}
 	return boolRequests
@@ -262,14 +237,13 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 		if !node.ID.IsValid() {
 			continue
 		}
+		if !isNodeAvailable(node) {
+			continue
+		}
 
 		cabRequestBools := make([]bool, def.NumFloors)
 		for floor := 0; floor < def.NumFloors; floor++ {
-			if node.CabRequests[floor] == def.Acknowledged {
-				cabRequestBools[floor] = true
-			} else {
-				cabRequestBools[floor] = false
-			}
+			cabRequestBools[floor] = node.CabRequests[floor] == def.Acknowledged
 		}
 
 		States[string(node.ID)] = ORAElevState{
@@ -281,6 +255,16 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 	}
 
 	return States
+}
+
+func isNodeAvailable(node def.Node) bool {
+	if !nw.GetAliveList().Peers[node.ID] {
+		return false
+	}
+	if node.Elevator.Malfunctioned {
+		return false
+	}
+	return true
 }
 
 // convert from dirtype to executabe string

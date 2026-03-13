@@ -71,6 +71,9 @@ func InitStateMachine(
 	//to raise alarm if elevator uses too long moving between two adjacent floors (because of hardware failure).
 	go FloorTimer(floorTimerResetCH, floorTimerTimeoutCH, floorTimerStopCH)
 
+	//pull events (button, floor, obstruction-switch) from hardware, and message the elevator:
+	go pullHardwareNotifyStateMachine(drvButtonsCH, drvFloorsCH, drvObstructionCH, drvStopCH)
+
 	//main elevator control state-machine function
 	go controlElevatorStateMachine(
 		currentElevatorPositionCH,
@@ -110,9 +113,6 @@ func InitStateMachine(
 		latestDestinationCH,
 		requestLatestDestinationCH,
 		receiveLatestDestinationCH)
-
-	//pull events (button, floor, obstruction-switch) from hardware, and message the elevator:
-	go pullHardwareNotifyStateMachine(drvButtonsCH, drvFloorsCH, drvObstructionCH, drvStopCH)
 
 	//All lights controller
 	go SetAllLights(worldviewCH)
@@ -158,26 +158,27 @@ func controlElevatorStateMachine(
 	time.Sleep(1 * time.Second)
 	var Elevator def.Elevator
 
-	//Elevator is moves downward, until hits a floorsensor.
 	Elevator.CurrentFloor = def.BetweenFloors
 
 	select {
 	case Elevator.CurrentFloor = <-drvFloorsCH:
+		//Elevator is already on a floorsensor:
 		Elevator.ElevState = def.Idle
 		fmt.Println("Init ElevState = Idle")
 		Elevator.Direction = elevio.MD_Stop
 	default:
+		//move downward, until hits a floorsensor.
 		Elevator.ElevState = def.Moving
 		fmt.Println("Init ElevState = Moving")
 		Elevator.Direction = elevio.MD_Down
+		ResetFloorTimer(floorTimerResetCH, floorTimerTimeoutCH)
 	}
 	elevio.SetMotorDirection(Elevator.Direction)
-	//default destination: Ground floor, stop, go "Idle".
+	//default destination: stop, go "Idle".
 	var currentDestination def.OrderMessage
 	currentDestination.Floor = def.GroundFloor
 	currentDestination.Direction = elevio.MD_Stop
 	ResetWatchdogTimer(watchdogResetCH, watchdogTimeoutCH)
-	ResetFloorTimer(floorTimerResetCH, floorTimerTimeoutCH)
 	var isObstructedFlag bool = false
 	var isStoppedFlag bool = false
 	//main loop:
@@ -189,10 +190,10 @@ func controlElevatorStateMachine(
 			select {
 			case isObstructedFlag = <-drvObstructionCH:
 				obstructionMalfunctionCH <- isObstructedFlag
-				elevio.SetMotorDirection(stopOrResumeMovinginueMoving(isObstructedFlag, isStoppedFlag, Elevator.Direction))
+				elevio.SetMotorDirection(stopOrResumeMoving(isObstructedFlag, isStoppedFlag, Elevator.Direction))
 			case isStoppedFlag = <-drvStopCH:
 				stopMalfunctionCH <- isStoppedFlag
-				elevio.SetMotorDirection(stopOrResumeMovinginueMoving(isObstructedFlag, isStoppedFlag, Elevator.Direction))
+				elevio.SetMotorDirection(stopOrResumeMoving(isObstructedFlag, isStoppedFlag, Elevator.Direction))
 			case buttonEvent := <-drvButtonsCH:
 				buttonEventCH <- buttonEvent
 			case Elevator.CurrentFloor = <-drvFloorsCH:
@@ -370,15 +371,9 @@ func produceNextElevatorDestination(
 				//no orders to take. Stop elevator. Let it go Idle.
 				newDestination.Floor = elevatorMovement.Floor
 				newDestination.Direction = elevio.MD_Stop
-			} else {
+			}else{
 				//there are orders for the elevator to take.
-				if elevatorMovement.Direction == elevio.MD_Stop {
-					//elevator is Idle.
-					newDestination = findClosestOrderInAnyDirection(elevatorMovement, costfunctionOutput)
-				} else {
-					//elevator is moving in some direction
-					newDestination = findClosestDestinationGivenCurrentDirectionDirection(elevatorMovement, costfunctionOutput)
-				}
+				newDestination = findClosestDestination(elevatorMovement, costfunctionOutput)
 			}
 			//Send destination to elevator:
 			latestDestinationCH <- newDestination
@@ -386,6 +381,9 @@ func produceNextElevatorDestination(
 	}
 }
 
+
+//dont delete yet. spør Daniel.
+/*
 // function is done.
 // copilot says its okay
 func findClosestOrderInAnyDirection(
@@ -437,17 +435,24 @@ func findClosestOrderInAnyDirection(
 	}
 	return elevatorOrder
 }
+*/
+
 
 // function is done
 // copilot says its okay
-func findClosestDestinationGivenCurrentDirectionDirection(
+func findClosestDestination(
 	elevatorMovement def.OrderMessage,
 	costfunctionOutput def.AssignedOrders,
 ) def.OrderMessage {
 	var closestDestination def.OrderMessage
 
-	//elevator is moving, when this function is called.
-	//check if its moving downwards.
+	//there is at least one order to take
+	//If elevator is idle (direction = stop), then just give it a direction:
+	if(elevatorMovement.Direction == elevio.MD_Stop){
+		elevatorMovement.Direction = elevio.MD_Down
+	}
+
+	//we now walk an entire circle (up and down) the orderfunction, and look for nearest "True"= order.
 	if elevatorMovement.Direction == elevio.MD_Down {
 		//Look for DOWN orders on a lower floor
 		for i := elevatorMovement.Floor - 1; i >= def.GroundFloor; i-- {
@@ -460,17 +465,30 @@ func findClosestDestinationGivenCurrentDirectionDirection(
 		//Look for UP orders on a lower floor
 		for i := def.GroundFloor; i < elevatorMovement.Floor; i++ {
 			if costfunctionOutput[i][def.DirUp] == true {
-				//tell it to stop and go idle there
 				closestDestination.Direction = elevio.MD_Up
 				closestDestination.Floor = i
 				return closestDestination
 			}
 		}
-		//If moving down, and no orders at all below it, tell it to stop.
-		closestDestination.Direction = elevio.MD_Stop
-		closestDestination.Floor = elevatorMovement.Floor - 1
-		return closestDestination
+		//If direction = down, and no orders at all below it, look on current floor and above
+		for i := elevatorMovement.Floor; i < def.NumFloors; i++ {
+			if costfunctionOutput[i][def.DirUp] == true {
+				closestDestination.Direction = elevio.MD_Up
+				closestDestination.Floor = i
+				return closestDestination
+			}
+		}
+
+		//If direction = down, and no orders at all below it, or going up, check orders above it going down
+		for i := def.NumFloors-1; i >= elevatorMovement.Floor; i-- {
+			if costfunctionOutput[i][def.DirDown] == true {
+				closestDestination.Direction = elevio.MD_Down
+				closestDestination.Floor = i
+				return closestDestination
+			}
+		}
 	} else {
+		//we now walk an entire circle in the oposite direction (up and down) the orderfunction, and look for nearest "True"= order.
 		//elevator is moving upwards
 		//Look for UP orders on a floor above
 		for i := elevatorMovement.Floor + 1; i < def.NumFloors; i++ {
@@ -483,16 +501,27 @@ func findClosestDestinationGivenCurrentDirectionDirection(
 		//Look for DOWN orders on a floor above
 		for i := def.NumFloors - 1; i > elevatorMovement.Floor; i-- {
 			if costfunctionOutput[i][def.DirDown] == true {
-				//tell it to stop and go idle there
 				closestDestination.Direction = elevio.MD_Down
 				closestDestination.Floor = i
 				return closestDestination
 			}
 		}
-		//If no orders at all above it, tell it to stop.
-		closestDestination.Direction = elevio.MD_Stop
-		closestDestination.Floor = elevatorMovement.Floor + 1
-		return closestDestination
+		//There are no orders above the elevator. Now we check on currentfloor and below.
+		for i := elevatorMovement.Floor; i >= def.GroundFloor; i-- {
+			if costfunctionOutput[i][def.DirDown] == true {
+				closestDestination.Direction = elevio.MD_Down
+				closestDestination.Floor = i
+				return closestDestination
+			}
+		}
+		//check from ground floor going UP to and including currentfloor
+		for i := def.GroundFloor; i <= elevatorMovement.Floor; i++ {
+			if costfunctionOutput[i][def.DirUp] == true {
+				closestDestination.Direction = elevio.MD_Up
+				closestDestination.Floor = i
+				return closestDestination
+			}
+		}
 	}
 }
 
@@ -518,7 +547,7 @@ func orderCount(
 
 // function is done
 // copilot says its okay
-func stopOrResumeMovinginueMoving(
+func stopOrResumeMoving(
 	isObstructedFlag bool,
 	isStoppedFlag bool,
 	currentElevatorDirection elevio.MotorDirection,

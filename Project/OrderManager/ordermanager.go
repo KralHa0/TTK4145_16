@@ -109,7 +109,7 @@ func UpdaterRun(
 			}
 			sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
-			PrintWv(GetLocalWv())
+
 
 		// New button press from FSM
 		case newOrder := <-newOrderCh:
@@ -127,6 +127,7 @@ func UpdaterRun(
 			sendToOrderHandler(orderHandlerWvCh)
 			sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
+			PrintWv(GetLocalWv())
 
 		// Malfunction from fsm
 		case malfunction := <-malfunctionCh:

@@ -56,7 +56,7 @@ func InitStateMachine(
 	//then only sends floor int once when hit a new floor.
 	drvObstructionCH := make(chan bool, 10)
 	//only sends bool on change in obstruction-state
-	drvStopCH := make(chan bool, 10)
+	drvStopCH := make(chan bool)
 
 	//channels for getting latest destination from producenextdestination, into state-machine.
 	latestDestinationCH := make(chan def.OrderMessage, 10)

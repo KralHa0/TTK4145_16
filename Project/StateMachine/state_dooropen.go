@@ -9,25 +9,25 @@ import (
 )
 
 func handleDoorOpen(
-	elev                *def.Elevator,
-	currentDestination  *def.OrderMessage,
-	isObstructedFlag    *bool,
-	isStoppedFlag       *bool,
-	drvObstructionCH    <-chan bool,
-	drvStopCH           <-chan bool,
-	drvButtonsCH        <-chan elevio.ButtonEvent,
-	doorTimerTimeoutCH  <-chan bool,
-	buttonEventCH       chan<- elevio.ButtonEvent,
-	obstructionMalfCH   chan<- bool,
-	stopMalfCH          chan<- bool,
-	clearOrderCH        chan<- def.FsmClearOrderMessage,
-	currentPosCH        chan<- def.OrderMessage,
-	watchdogResetCH     chan bool,
-	watchdogTimeoutCH   chan bool,
-	floorTimerResetCH   chan bool,
+	elev *def.Elevator,
+	currentDestination *def.OrderMessage,
+	isObstructedFlag *bool,
+	isStoppedFlag *bool,
+	drvObstructionCH <-chan bool,
+	drvStopCH <-chan bool,
+	drvButtonsCH <-chan elevio.ButtonEvent,
+	doorTimerTimeoutCH <-chan bool,
+	buttonEventCH chan<- elevio.ButtonEvent,
+	obstructionMalfCH chan<- bool,
+	stopMalfCH chan<- bool,
+	clearOrderCH chan<- def.FsmClearOrderMessage,
+	currentPosCH chan<- def.OrderMessage,
+	watchdogResetCH chan bool,
+	watchdogTimeoutCH chan bool,
+	floorTimerResetCH chan bool,
 	floorTimerTimeoutCH chan bool,
-	floorTimerStopCH    chan bool,
-	doorTimerResetCH    chan bool,
+	floorTimerStopCH chan bool,
+	doorTimerResetCH chan bool,
 ) {
 	select {
 	case *isObstructedFlag = <-drvObstructionCH:
@@ -37,8 +37,10 @@ func handleDoorOpen(
 		}
 	case *isStoppedFlag = <-drvStopCH:
 		stopMalfCH <- *isStoppedFlag
+		elevio.SetStopLamp(true)
 		if *isStoppedFlag == false {
 			ResetDoorTimer(doorTimerResetCH)
+			elevio.SetStopLamp(false)
 		}
 	case buttonEvent := <-drvButtonsCH:
 		//Drop order if elevator is already at right floor and direction

@@ -32,6 +32,10 @@ func handleIdle(
 		obstructionMalfCH <- *isObstructedFlag
 	case *isStoppedFlag = <-drvStopCH:
 		stopMalfCH <- *isStoppedFlag
+		elevio.SetStopLamp(true)
+		if *isStoppedFlag == false {
+			elevio.SetStopLamp(false)
+		}
 	case buttonEvent := <-drvButtonsCH:
 		buttonEventCH <- buttonEvent
 	case <-time.After(5 * time.Millisecond):

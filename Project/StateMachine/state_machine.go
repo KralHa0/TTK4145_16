@@ -523,6 +523,7 @@ func findClosestDestination(
 			}
 		}
 	}
+	return closestDestination
 }
 
 // function is done

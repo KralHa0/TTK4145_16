@@ -185,6 +185,9 @@ func controlElevatorStateMachine(
 	for {
 		time.Sleep(200 * time.Millisecond)
 		currentDestination = getLatestDestination(currentDestination, requestLatestDestinationCH, receiveLatestDestinationCH)
+		if !(Elevator.CurrentFloor == def.BetweenFloors){
+			//Send the elevator-struct on a channel here.
+		}
 		switch Elevator.ElevState {
 		case def.Moving:
 			select {
@@ -381,8 +384,7 @@ func produceNextElevatorDestination(
 	}
 }
 
-
-//dont delete yet. spør Daniel.
+//Ikke delete denne, spør daniel. funksjonen kan være nyttig.
 /*
 // function is done.
 // copilot says its okay
@@ -447,9 +449,9 @@ func findClosestDestination(
 	var closestDestination def.OrderMessage
 
 	//there is at least one order to take
-	//If elevator is idle (direction = stop), then just give it a direction:
+	//If elevator is idle (direction = stop), give it a direction:
 	if(elevatorMovement.Direction == elevio.MD_Stop){
-		elevatorMovement.Direction = elevio.MD_Down
+		elevatorMovement.Direction = elevio.Md_Down
 	}
 
 	//we now walk an entire circle (up and down) the orderfunction, and look for nearest "True"= order.

@@ -98,8 +98,15 @@ func (o *OrderAssigner) Run() {
 					continue
 				}
 
-				input := o.worldviewToORAInput(wv)
-				checkORAInput(input)
+				input, err := o.worldviewToORAInput(wv)
+				if err != nil {
+					fmt.Println("Error building costfunction input: ", err)
+					continue
+				}
+
+				if !checkORAInput(input) {
+					continue
+				}
 
 				jsonBytes, err := makeExecutableInput(input)
 				if err != nil {
@@ -164,12 +171,12 @@ func (o *OrderAssigner) Run() {
 //----------
 
 // TODO: rename func to fit
-func (o *OrderAssigner) worldviewToORAInput(w def.Worldview) ORAInput {
+func (o *OrderAssigner) worldviewToORAInput(w def.Worldview) (ORAInput, error) {
 	input := ORAInput{
 		HallRequests: hallrequestToBool(w.HallRequests),
 		States:       makeORAStateMap(w.Nodes),
 	}
-	return input
+	return input, nil
 }
 
 // rename to makeExecutableInput
@@ -253,6 +260,7 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 			CabRequests: cabRequestBools,
 		}
 	}
+	
 
 	return States
 }
@@ -262,6 +270,7 @@ func isNodeAvailable(node def.Node) bool {
 		return false
 	}
 	if node.Elevator.Malfunctioned {
+
 		return false
 	}
 	return true

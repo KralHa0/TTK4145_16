@@ -12,11 +12,12 @@ import (
 // Invariants:
 //   I1: len(HallRequests) == NumFloors  (4×2 layout)
 //   I2: each elevator's CabRequests slice has length NumFloors  (4×1 layout)
-func checkORAInput(input ORAInput) {
+func checkORAInput(input ORAInput) bool{
 	// I1: hall requests row count
 	if len(input.HallRequests) != def.NumFloors {
 		fmt.Printf("[ACCEPTANCE FAIL] I1: HallRequests has %d rows, expected %d\n",
 			len(input.HallRequests), def.NumFloors)
+		return false
 	}
 
 	// I2: cab requests length per elevator
@@ -24,8 +25,10 @@ func checkORAInput(input ORAInput) {
 		if len(state.CabRequests) != def.NumFloors {
 			fmt.Printf("[ACCEPTANCE FAIL] I2: elevator %q has %d cab request entries, expected %d\n",
 				id, len(state.CabRequests), def.NumFloors)
+				return false
 		}
 	}
+	return true
 }
 
 // checkORAOutputMap verifies the full output map returned by the executable

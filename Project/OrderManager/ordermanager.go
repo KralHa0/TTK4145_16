@@ -93,10 +93,12 @@ func UpdaterRun(
 
 		// Periodic ORA re-evaluation
 		case <-oraTicker.C:
-			localWvMu.RLock()
+			localWvMu.Lock()
+			applyHallConsensus(getAliveList())
 			sendToOrderHandler(orderHandlerWvCh)
-			PrintWv(GetLocalWv())
-			localWvMu.RUnlock()
+			wvCopy := deepCopyWorldview(localWv)
+			localWvMu.Unlock()
+			PrintWv(wvCopy)
 
 		// Merge incoming peer worldview
 		case peerWv := <-peerWvCh:
@@ -121,6 +123,7 @@ func UpdaterRun(
 		case orderMsg := <-orderCompleteCh:
 			localWvMu.Lock()
 			applyCompletion(orderMsg.Floor, orderMsg.Dir)
+			applyHallConsensus(getAliveList())
 			sendToOrderHandler(orderHandlerWvCh)
 			sendToFsm(omToFsmWvCh)
 			localWvMu.Unlock()
@@ -302,6 +305,34 @@ func allAliveHallAtOrAbove(
 		}
 	}
 	return true
+}
+
+// applyHallConsensus advances hall request states that can be resolved with
+// the current alive list alone, without needing a peer worldview message.
+// Handles Exist→Acknowledged and Complete→NoCall for isolated elevators.
+// Caller must hold localWvMu write lock.
+func applyHallConsensus(aliveList def.AliveList) bool {
+	reachedAck := false
+	for floor := 0; floor < def.NumFloors; floor++ {
+		for dir := 0; dir < 2; dir++ {
+			if localWv.HallRequests[floor][dir] == def.Exist {
+				if allAliveHallAtOrAbove(floor, dir, def.Exist, aliveList) {
+					if validTransition(localWv.HallRequests[floor][dir], def.Acknowledged) {
+						localWv.HallRequests[floor][dir] = def.Acknowledged
+						reachedAck = true
+					}
+				}
+			}
+			if localWv.HallRequests[floor][dir] == def.Complete {
+				if allAliveHallAtOrAbove(floor, dir, def.Complete, aliveList) {
+					if validTransition(localWv.HallRequests[floor][dir], def.NoCall) {
+						localWv.HallRequests[floor][dir] = def.NoCall
+					}
+				}
+			}
+		}
+	}
+	return reachedAck
 }
 
 // --------------------------------------------------

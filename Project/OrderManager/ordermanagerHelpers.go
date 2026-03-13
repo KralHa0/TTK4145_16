@@ -77,9 +77,9 @@ func PrintWv(wv def.Worldview) {
 	fmt.Printf("%-6s  %-4s  %-4s", "", "", "")
 	for _, node := range wv.Nodes {
 		alivelist := nw.GetAliveList()
-		f := "F"
+		f := "D"
 		if alivelist.Peers[node.ID] == true {
-			f = "T"
+			f = "A"
 		}
 		e := node.Elevator
 		dir := dirStr[int(e.Direction)]

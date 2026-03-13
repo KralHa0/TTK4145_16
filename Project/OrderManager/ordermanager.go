@@ -140,7 +140,17 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 
 	// Merge peer nodes into localWv so ORA sees all elevators
 	for _, peerNode := range peerWv.Nodes {
-		if !peerNode.ID.IsValid() || peerNode.ID == localNode().ID {
+		if !peerNode.ID.IsValid() {
+			continue
+		}
+		if peerNode.ID == localNode().ID {
+			// Recover our own cab calls from peer memory on reconnect:
+			// if we lost state (NoCall) but a peer still remembers an active call, adopt it.
+			for f := 0; f < def.NumFloors; f++ {
+				if localNode().CabRequests[f] == def.NoCall && peerNode.CabRequests[f] == def.Acknowledged {
+					localNode().CabRequests[f] = def.Acknowledged
+				}
+			}
 			continue
 		}
 		found := false
@@ -194,6 +204,14 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 						localWv.HallRequests[floor][dir] = def.NoCall
 					}
 				}
+			}
+
+			// Complete -> NoCall: adopt from peer that already cleared it.
+			// When the first node to clear broadcasts NoCall, other nodes see
+			// NoCall (0) < Complete (3) and allAliveHallAtOrAbove never passes —
+			// this rule breaks that deadlock.
+			if localWv.HallRequests[floor][dir] == def.Complete && peer == def.NoCall {
+				localWv.HallRequests[floor][dir] = def.NoCall
 			}
 		}
 	}

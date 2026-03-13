@@ -144,8 +144,8 @@ func (o *OrderAssigner) Run() {
 				var assigned def.AssignedOrders
 				copy(assigned[:], output[o.ownID])
 
-				assigned[0][1] = false
-				assigned[3][0] = false
+				assigned[0][def.DirDown] = false
+				assigned[def.NumFloors-1][def.DirUp] = false
 
 				//send
 				select {

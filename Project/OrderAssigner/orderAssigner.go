@@ -11,6 +11,7 @@ import (
 	"time"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
+	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 )
 
 // Interface:
@@ -233,6 +234,9 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 		if !node.ID.IsValid() {
 			continue
 		}
+		if !isNodeAvailable(node) {
+			continue
+		}
 
 		cabRequestBools := make([]bool, def.NumFloors)
 		for floor := 0; floor < def.NumFloors; floor++ {
@@ -248,6 +252,16 @@ func makeORAStateMap(nodes []def.Node) map[string]ORAElevState {
 	}
 
 	return States
+}
+
+func isNodeAvailable(node def.Node) bool {
+	if !nw.GetAliveList().Peers[node.ID] {
+		return false
+	}
+	if node.Elevator.Malfunctioned {
+		return false
+	}
+	return true
 }
 
 // convert from dirtype to executabe string

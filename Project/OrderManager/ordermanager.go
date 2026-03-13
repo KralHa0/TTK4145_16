@@ -93,6 +93,7 @@ func UpdaterRun(
 
 		// Merge incoming peer worldview
 		case peerWv := <-peerWvCh:
+			printIncomingWv(peerWv)
 			localWvMu.Lock()
 			reachedAck := mergePeerWorldview(peerWv, getAliveList())
 			if reachedAck {
@@ -145,6 +146,7 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 		for i := range localWv.Nodes {
 			if localWv.Nodes[i].ID == peerNode.ID {
 				localWv.Nodes[i].Elevator = peerNode.Elevator
+				localWv.Nodes[i].CabRequests = peerNode.CabRequests
 				found = true
 				break
 			}
@@ -363,9 +365,13 @@ func PrintHallCalls(hallRequests [def.NumFloors][2]def.OrderState) {
 
 // PrintWv prints the full worldview as a table: hall calls (Up/Down) as the
 // first column group, followed by one column per node (cab request per floor).
+// An elevator-status row is printed below the header.
 func PrintWv(wv def.Worldview) {
-	const colW = 14
-	// Header
+	const colW = 16
+	dirStr := map[int]string{-1: "Dn", 0: "--", 1: "Up"}
+	stateStr := []string{"Mov", "Idle", "Door"}
+
+	// Header: node IDs
 	fmt.Printf("%-6s  %-4s  %-4s", "Floor", "Up", "Dn")
 	for _, node := range wv.Nodes {
 		id := string(node.ID)
@@ -375,12 +381,32 @@ func PrintWv(wv def.Worldview) {
 		fmt.Printf("  %-*s", colW, id)
 	}
 	fmt.Println()
+
+	// Elevator status row
+	fmt.Printf("%-6s  %-4s  %-4s", "", "", "")
+	for _, node := range wv.Nodes {
+		e := node.Elevator
+		dir := dirStr[int(e.Direction)]
+		state := "?"
+		if int(e.ElevState) < len(stateStr) {
+			state = stateStr[e.ElevState]
+		}
+		malf := "OK"
+		if e.Malfunctioned {
+			malf = "MALF"
+		}
+		info := fmt.Sprintf("f%d %s %s %s", e.CurrentFloor, dir, state, malf)
+		fmt.Printf("  %-*s", colW, info)
+	}
+	fmt.Println()
+
 	// Separator
 	sepLen := 18 + len(wv.Nodes)*(colW+2)
 	for i := 0; i < sepLen; i++ {
 		fmt.Print("-")
 	}
 	fmt.Println()
+
 	// One row per floor
 	for f := 0; f < def.NumFloors; f++ {
 		fmt.Printf("%-6d  %-4s  %-4s",
@@ -392,4 +418,13 @@ func PrintWv(wv def.Worldview) {
 		}
 		fmt.Println()
 	}
+}
+
+// printIncomingWv prints a peer worldview as it arrives — comment out to silence.
+func printIncomingWv(wv def.Worldview) {
+	if len(wv.Nodes) == 0 {
+		return
+	}
+	fmt.Printf("[OM] Incoming WV from %s:\n", wv.Nodes[0].ID)
+	PrintWv(wv)
 }

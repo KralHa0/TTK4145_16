@@ -8,6 +8,7 @@ import (
 	"Driver-go/elevio"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
+	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
 )
 
 // --------------------------------------------------
@@ -385,6 +386,7 @@ func PrintWv(wv def.Worldview) {
 	// Elevator status row
 	fmt.Printf("%-6s  %-4s  %-4s", "", "", "")
 	for _, node := range wv.Nodes {
+		alivelist := nw.GetAliveList()
 		e := node.Elevator
 		dir := dirStr[int(e.Direction)]
 		state := "?"
@@ -395,7 +397,7 @@ func PrintWv(wv def.Worldview) {
 		if e.Malfunctioned {
 			malf = "MALF"
 		}
-		info := fmt.Sprintf("f%d %s %s %s", e.CurrentFloor, dir, state, malf)
+		info := fmt.Sprintf("%t %s %s %s", alivelist.Peers[node.ID], dir, state, malf)
 		fmt.Printf("  %-*s", colW, info)
 	}
 	fmt.Println()

@@ -18,6 +18,7 @@ func InitStateMachine(
 	buttonEventCH chan elevio.ButtonEvent,
 	costFunctionOutputCH <-chan def.AssignedOrders,
 	worldviewCH chan def.Worldview,
+	fsmToOMElevStateCh chan def.Elevator,
 ) {
 	// Initialize elevio/hardware
 	elevatorAddr := fmt.Sprintf("%s:%d", def.Addr, def.Port)
@@ -92,6 +93,7 @@ func InitStateMachine(
 		clearOrderCH,
 		requestLatestDestinationCH,
 		receiveLatestDestinationCH,
+		fsmToOMElevStateCh,
 	)
 
 	//inform scheduler about our malfunction-status
@@ -116,7 +118,6 @@ func InitStateMachine(
 	go SetAllLights(worldviewCH)
 }
 
-
 func controlElevatorStateMachine(
 	currentElevatorPositionCH chan def.OrderMessage,
 	buttonEventCH chan elevio.ButtonEvent,
@@ -136,6 +137,7 @@ func controlElevatorStateMachine(
 	clearOrderCH chan def.FsmClearOrderMessage,
 	requestLatestDestinationCH chan def.OrderMessage,
 	receiveLatestDestinationCH chan def.OrderMessage,
+	fsmToOMElevStateCh chan def.Elevator,
 ) {
 	time.Sleep(1 * time.Second)
 	var elev def.Elevator
@@ -167,6 +169,13 @@ func controlElevatorStateMachine(
 	for {
 		time.Sleep(200 * time.Millisecond)
 		currentDestination = getLatestDestination(currentDestination, requestLatestDestinationCH, receiveLatestDestinationCH)
+		if elev.CurrentFloor != def.BetweenFloors {
+			select {
+			case fsmToOMElevStateCh <- elev:
+			default:
+			}
+		}
+
 		switch elev.ElevState {
 		case def.Moving:
 			handleMoving(
@@ -201,4 +210,3 @@ func controlElevatorStateMachine(
 		}
 	}
 }
-

@@ -35,7 +35,7 @@ func sendMalfunctionStatus(
 		//only send an update on channel, if there has been a change, or on startup.
 		if (newMalfunctionStatus != currentMalfunctionStatus) || FirstTransmission {
 			currentMalfunctionStatus = newMalfunctionStatus
-			fmt.Println(currentMalfunctionStatus)
+			//fmt.Println("Malfunction status: %t", currentMalfunctionStatus)
 			malfunctionStatusCH <- currentMalfunctionStatus
 			FirstTransmission = false
 		}

@@ -60,6 +60,7 @@ func PrintWv(wv def.Worldview) {
 	const colW = 16
 	dirStr := map[int]string{-1: "Dn", 0: "--", 1: "Up"}
 	stateStr := []string{"Mov", "Idle", "Door"}
+	fmt.Println()
 
 	// Header: node IDs
 	fmt.Printf("%-6s  %-4s  %-4s", "Floor", "Up", "Dn")
@@ -113,6 +114,7 @@ func PrintWv(wv def.Worldview) {
 		}
 		fmt.Println()
 	}
+
 }
 
 // printIncomingWv prints a peer worldview as it arrives — comment out to silence.
@@ -131,7 +133,7 @@ func printIncomingWv(wv def.Worldview) {
 func sendToOrderHandler(orderHandlerWvCh chan<- def.Worldview) {
 	select {
 	case orderHandlerWvCh <- deepCopyWorldview(localWv):
-		fmt.Println("[OM] Sending to ORA")
+		//fmt.Println("[OM] Sending to ORA")
 	default:
 	}
 }

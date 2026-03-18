@@ -10,9 +10,10 @@ import (
 // has the correct dimensions before sending it.
 //
 // Invariants:
-//   I1: len(HallRequests) == NumFloors  (4×2 layout)
-//   I2: each elevator's CabRequests slice has length NumFloors  (4×1 layout)
-func checkORAInput(input ORAInput) bool{
+//
+//	I1: len(HallRequests) == NumFloors  (4×2 layout)
+//	I2: each elevator's CabRequests slice has length NumFloors  (4×1 layout)
+func checkORAInput(input ORAInput) bool {
 	// I1: hall requests row count
 	if len(input.HallRequests) != def.NumFloors {
 		fmt.Printf("[ACCEPTANCE FAIL] I1: HallRequests has %d rows, expected %d\n",
@@ -25,7 +26,7 @@ func checkORAInput(input ORAInput) bool{
 		if len(state.CabRequests) != def.NumFloors {
 			fmt.Printf("[ACCEPTANCE FAIL] I2: elevator %q has %d cab request entries, expected %d\n",
 				id, len(state.CabRequests), def.NumFloors)
-				return false
+			return false
 		}
 	}
 	return true
@@ -35,20 +36,22 @@ func checkORAInput(input ORAInput) bool{
 // before the own node's slice is extracted.
 //
 // Invariants:
-//   O1: each elevator's order slice has length NumFloors  (4×2 layout)
-//   O2: every Acknowledged hall request is assigned to at least one elevator
-func checkORAOutputMap(outputMap map[def.NodeID][][2]bool, wv def.Worldview) {
+//
+//	O1: each elevator's order slice has length NumFloors  (4×2 layout)
+//	O2: every Acknowledged hall request is assigned to at least one elevator
+func checkORAOutputMap(outputMap map[def.NodeID][][2]bool, wv def.Worldview) bool {
 	// O1: output slice length per elevator
 	for id, orders := range outputMap {
 		if len(orders) != def.NumFloors {
 			fmt.Printf("[ACCEPTANCE FAIL] O1: elevator %q output has %d rows, expected %d\n",
 				id, len(orders), def.NumFloors)
+			return false
 		}
 	}
 
 	// O2: every Acknowledged hall call must appear in at least one elevator's output
-	for floor := 0; floor < def.NumFloors; floor++ {
-		for dir := 0; dir < 2; dir++ {
+	for floor := range def.NumFloors {
+		for dir := range 2 {
 			if wv.HallRequests[floor][dir] != def.Acknowledged {
 				continue
 			}
@@ -62,18 +65,21 @@ func checkORAOutputMap(outputMap map[def.NodeID][][2]bool, wv def.Worldview) {
 			if !assigned {
 				fmt.Printf("[ACCEPTANCE FAIL] O2: Acknowledged hall request floor=%d dir=%d not assigned to any elevator\n",
 					floor, dir)
+				return false
 			}
 		}
 	}
+	return true
 }
 
 // checkOwnOutput verifies the own node's final AssignedOrders slice after
 // cab calls have been inserted.
 //
 // Invariant:
-//   A1: for every floor where own node has an Acknowledged cab request,
-//       output[floor] must be {true, true}
-func checkOwnOutput(ownOutput [][2]bool, wv def.Worldview, ownID def.NodeID) {
+//
+//	A1: for every floor where own node has an Acknowledged cab request,
+//	    output[floor] must be {true, true}
+func checkOwnOutput(ownOutput [][2]bool, wv def.Worldview, ownID def.NodeID) bool {
 	var ownNode *def.Node
 	for i := range wv.Nodes {
 		if wv.Nodes[i].ID == ownID {
@@ -83,10 +89,10 @@ func checkOwnOutput(ownOutput [][2]bool, wv def.Worldview, ownID def.NodeID) {
 	}
 	if ownNode == nil {
 		fmt.Printf("[ACCEPTANCE FAIL] A1: own node %q not found in worldview\n", ownID)
-		return
+		return false
 	}
 
-	for floor := 0; floor < def.NumFloors; floor++ {
+	for floor := range def.NumFloors {
 		if ownNode.CabRequests[floor] != def.Acknowledged {
 			continue
 		}
@@ -98,6 +104,8 @@ func checkOwnOutput(ownOutput [][2]bool, wv def.Worldview, ownID def.NodeID) {
 		if ownOutput[floor] != [2]bool{true, true} {
 			fmt.Printf("[ACCEPTANCE FAIL] A1: Acknowledged cab request at floor %d not in output (got %v)\n",
 				floor, ownOutput[floor])
+			return false
 		}
 	}
+	return true
 }

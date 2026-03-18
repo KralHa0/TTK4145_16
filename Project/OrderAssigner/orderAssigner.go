@@ -16,35 +16,7 @@ type IOrderAssigner interface {
 	Run()
 }
 
-// Constants
-const oraTimeout = 2 * time.Second
-
-// Type Struct:
-type OrderAssigner struct {
-	wvCh       <-chan def.Worldview
-	outputCh   chan<- def.AssignedOrders
-	executable string
-	ownID      def.NodeID
-}
-
-/*TODO:
-Evaluate what vars should be public or not
-Make separate struct for ORAOutpurchan
-*/
-
-type ORAElevState struct {
-	ElevState   string `json:"behaviour"`
-	Floor       int    `json:"floor"`
-	Direction   string `json:"direction"`
-	CabRequests []bool `json:"cabRequests"`
-}
-
-type ORAInput struct {
-	HallRequests [][2]bool               `json:"hallRequests"`
-	States       map[string]ORAElevState `json:"states"`
-}
-
-// Constructor:
+// Order assigner constructor:
 func NewOrderAssigner(
 	ownID def.NodeID,
 	wvCh <-chan def.Worldview,
@@ -69,8 +41,32 @@ func NewOrderAssigner(
 	}
 }
 
-// start running the order assigner
+// Constants
+const oraTimeout = 2 * time.Second
+
+// Type Struct:
+type OrderAssigner struct {
+	wvCh       <-chan def.Worldview
+	outputCh   chan<- def.AssignedOrders
+	executable string
+	ownID      def.NodeID
+}
+
+type ORAElevState struct {
+	ElevState   string `json:"behaviour"`
+	Floor       int    `json:"floor"`
+	Direction   string `json:"direction"`
+	CabRequests []bool `json:"cabRequests"`
+}
+
+type ORAInput struct {
+	HallRequests [][2]bool               `json:"hallRequests"`
+	States       map[string]ORAElevState `json:"states"`
+}
+
+// Main loop of the order assigner
 func (o *OrderAssigner) Run() {
+	//panic handling
 	for {
 		closedNormaly := false
 		func() {
@@ -88,9 +84,6 @@ func (o *OrderAssigner) Run() {
 					wv = <-o.wvCh
 				}
 
-				////fmt.Println("Received new worldview, running cost function...")
-
-				
 				input, err := o.worldviewToORAInput(wv)
 				if err != nil {
 					fmt.Println("Error building costfunction input: ", err)
@@ -100,7 +93,7 @@ func (o *OrderAssigner) Run() {
 				if !checkORAInput(input) {
 					continue
 				}
-				
+
 				if len(input.States) == 0 {
 					fmt.Println("OrderAssigner: skipping worldview with no nodes")
 					continue
@@ -111,11 +104,6 @@ func (o *OrderAssigner) Run() {
 					fmt.Println("Error marshaling input: ", err)
 					continue
 				}
-
-				//fmt.Println("JSON being sent to executable:")
-				//fmt.Println(string(jsonBytes))
-
-				
 
 				costFuncResult, err := o.runORAExecutable(jsonBytes)
 				if err != nil {
@@ -129,30 +117,34 @@ func (o *OrderAssigner) Run() {
 					continue
 				}
 
-				checkORAOutputMap(output, wv)
+				if !checkORAOutputMap(output, wv) {
+					continue
+				}
 
-				// traditional testing turn into acc test
 				if _, ok := output[o.ownID]; !ok {
 					fmt.Println("OrderAssigner: own ID not in output, skipping")
 					continue
 				}
 
 				insertCabCallsIntoOutput(output[o.ownID], wv, o.ownID)
-				checkOwnOutput(output[o.ownID], wv, o.ownID)
 
-				//fmt.Println("No errors during execution")
+				if !checkOwnOutput(output[o.ownID], wv, o.ownID) {
+					continue
+				}
+
+				// pull out own orders
 				var assigned def.AssignedOrders
 				copy(assigned[:], output[o.ownID])
 
+				// Hard remove impossible orders
 				assigned[0][def.DirDown] = false
 				assigned[def.NumFloors-1][def.DirUp] = false
 
-				//send
+				//non-blocking messaging
 				select {
 				case o.outputCh <- assigned:
 				default:
 				}
-
 			}
 			closedNormaly = true // only reached if channel closed normally
 		}()
@@ -177,4 +169,3 @@ func (o *OrderAssigner) runORAExecutable(jsonBytes []byte) ([]byte, error) {
 	}
 	return ret, nil
 }
-

@@ -21,7 +21,7 @@ func directionToString(d elevio.MotorDirection) string {
 	}
 }
 
-// convert fron PossibeState type to executable string
+// convert from PossibeState type to executable string
 func stateToString(s def.PossibleStates) string {
 	switch s {
 	case def.Moving:
@@ -33,6 +33,7 @@ func stateToString(s def.PossibleStates) string {
 	}
 }
 
+// convert from worldview to valid executabel input
 func (o *OrderAssigner) worldviewToORAInput(w def.Worldview) (ORAInput, error) {
 	input := ORAInput{
 		HallRequests: hallrequestToBool(w.HallRequests),
@@ -41,6 +42,7 @@ func (o *OrderAssigner) worldviewToORAInput(w def.Worldview) (ORAInput, error) {
 	return input, nil
 }
 
+// unmarshal result from costfunc
 func makeResult(ret []byte) (map[def.NodeID][][2]bool, error) {
 	var outputMap map[def.NodeID][][2]bool
 	err := json.Unmarshal(ret, &outputMap)
@@ -50,7 +52,7 @@ func makeResult(ret []byte) (map[def.NodeID][][2]bool, error) {
 	return outputMap, nil
 }
 
-// make subfunc of unmarshal thing
+// add cabcalls to output
 func insertCabCallsIntoOutput(myOutPut [][2]bool, wv def.Worldview, ID def.NodeID) {
 	for _, node := range wv.Nodes {
 		if node.ID == ID {
@@ -75,6 +77,7 @@ func hallrequestToBool(hallRequests [def.NumFloors][2]def.OrderState) [][2]bool 
 	return boolRequests
 }
 
+// check node availability
 func isNodeAvailable(node def.Node) bool {
 	if !nw.GetAliveList().Peers[node.ID] {
 		return false
@@ -86,6 +89,7 @@ func isNodeAvailable(node def.Node) bool {
 	return true
 }
 
+// complete conversion to executable input
 func makeExecutableInput(input ORAInput) ([]byte, error) {
 	jsonBytes, err := json.Marshal(input)
 	if err != nil {
@@ -121,6 +125,5 @@ func makeORAStateMap(nodes []def.Node, ownID def.NodeID) map[string]ORAElevState
 			CabRequests: cabRequestBools,
 		}
 	}
-
 	return States
 }

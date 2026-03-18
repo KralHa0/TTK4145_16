@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
-	nw  "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
-	om  "github.com/KralHa0/TTK4145_16/Project/OrderManager"
+	nw "github.com/KralHa0/TTK4145_16/Project/NetworkHandler"
+	om "github.com/KralHa0/TTK4145_16/Project/OrderManager"
 )
 
 func RunTest() {
@@ -22,18 +22,18 @@ func RunTest() {
 
 	om.OrderManagerInit(localID, [def.NumFloors]def.OrderState{})
 
-	peerWvCh         := make(chan def.Worldview, 10)
-	orderCompleteCh  := make(chan def.FsmClearOrderMessage, 10)
-	newOrderCh       := make(chan elevio.ButtonEvent, 10)
-	networkWvCh      := make(chan def.Worldview, 10)
+	peerWvCh := make(chan def.Worldview, 10)
+	orderCompleteCh := make(chan def.FsmClearOrderMessage, 10)
+	newOrderCh := make(chan elevio.ButtonEvent, 10)
+	networkWvCh := make(chan def.Worldview, 10)
 	orderHandlerWvCh := make(chan def.Worldview, 10)
-	omToFsmWvCh      := make(chan def.Worldview, 10)
-	peerUpdateCh     := make(chan peers.PeerUpdate, 10)
-	localWvCh        := make(chan def.Worldview, 10)
-    malfunctionCh	 := make(chan bool, 10)
+	omToFsmWvCh := make(chan def.Worldview, 10)
+	peerUpdateCh := make(chan peers.PeerUpdate, 10)
+	localWvCh := make(chan def.Worldview, 10)
+	malfunctionCh := make(chan bool, 10)
 
 	go nw.NetworkRun(localWvCh, peerWvCh, peerUpdateCh)
-
+	
 	go func() {
 		for update := range peerUpdateCh {
 			nw.UpdateAliveList(update)
@@ -78,7 +78,7 @@ func printControls() {
 }
 
 func handleKeyboard(
-	newOrderCh      chan<- elevio.ButtonEvent,
+	newOrderCh chan<- elevio.ButtonEvent,
 	orderCompleteCh chan<- def.FsmClearOrderMessage,
 ) {
 	scanner := bufio.NewScanner(os.Stdin)

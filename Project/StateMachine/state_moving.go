@@ -63,7 +63,12 @@ func handleMoving(
 				StopFloorTimer(floorTimerStopCH, floorTimerTimeoutCH)
 				clearOrder(elev.CurrentFloor, elev.Direction, clearOrderCH)
 			} else {
-				//Order is on another floor, keep moving in current direction
+				// Recalculate direction in case destination changed since last loop iteration
+				newDir := getElevatorDirection(elev.CurrentFloor, currentDestination.Floor)
+				if newDir != elev.Direction {
+					elev.Direction = newDir
+					SetMotorDirection(elev.Direction)
+				}
 				ResetFloorTimer(floorTimerResetCH, floorTimerTimeoutCH)
 			}
 		}

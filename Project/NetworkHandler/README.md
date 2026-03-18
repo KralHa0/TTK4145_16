@@ -19,11 +19,11 @@ Thin wrapper around the Network-go library that manages UDP broadcast and peer d
 
 ## Key functions
 
-- `NetworkInit()` — starts all transmitter/receiver goroutines; must be called before anything else
-- `NetworkRun(...)` — main loop; bridges the above channels to the underlying bcast/peers library
-- `UpdateAliveList(update)` — updates the alive-peer map from a `PeerUpdate` event
-- `GetAliveList()` — returns a safe copy of the current alive-peer map (used by OrderManager for consensus)
-- `GetIp()` — returns the local IP as a `NodeID`
+- `NetworkInit()`: starts all transmitter/receiver goroutines; must be called before anything else
+- `NetworkRun(...)`: main loop; bridges the above channels to the underlying bcast/peers library
+- `UpdateAliveList(update)`: updates the alive-peer map from a `PeerUpdate` event
+- `GetAliveList()`: returns a safe copy of the current alive-peer map (used by OrderManager for consensus)
+- `GetIp()`: returns the local IP as a `NodeID`
 
 ## Notes
 

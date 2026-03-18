@@ -4,7 +4,7 @@ A distributed elevator control system written in Go. Multiple elevator nodes com
 
 ## Approach
 
-Each node runs an identical copy of the software. There is no central coordinator — nodes reach consensus by broadcasting their state and waiting until all alive peers have acknowledged each order transition before acting on it.
+Each node runs an identical copy of the software. There is no central coordinator, nodes reach consensus by broadcasting their state and waiting until all alive peers have acknowledged each order transition before acting on it.
 
 **Order lifecycle:** `NoCall → Exist → Acknowledged → Complete → NoCall`
 
@@ -12,7 +12,7 @@ A hall call is only served once all alive peers have confirmed they know about i
 
 Cab calls follow the same protocol but are local to each elevator. Peer memory is used to recover cab calls after a crash/restart.
 
-Hall call assignment (which elevator takes which call) is computed by an external cost-function binary (HRA) run locally on each node.
+Hall call assignment (which elevator takes which call) is computed by an external cost-function binary (ORA) run locally on each node.
 
 ## File structure
 
@@ -22,15 +22,8 @@ Project/
 ├── Definitions/             — Shared types: Worldview, Elevator, OrderState, NodeID, etc.
 ├── NetworkHandler/          — UDP broadcast and peer-discovery wrapper
 ├── OrderManager/            — Worldview owner; consensus state machine for all orders
-├── OrderAssigner/           — Wraps the HRA binary to assign hall calls to elevators
+├── OrderAssigner/           — Wraps the ORA binary to assign hall calls to elevators
 ├── StateMachine/            — Elevator FSM: Moving / Idle / DoorOpen states + hardware I/O
-│   ├── fsm.go               — Init and main control loop
-│   ├── state_moving.go      — Moving state handler
-│   ├── state_idle.go        — Idle state handler
-│   ├── state_dooropen.go    — DoorOpen state handler
-│   ├── destination.go       — Next-floor destination calculation
-│   ├── timers.go            — Door, watchdog, and floor timers
-│   └── malfunction.go       — Malfunction detection and reporting
 ├── Hardware/                — Low-level elevator I/O driver (elevio) [borrowed]
 ├── Network/                 — Low-level UDP broadcast and peer-heartbeat library [borrowed]
 └── Tester/                  — Integration test harnesses

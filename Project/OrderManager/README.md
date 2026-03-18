@@ -1,6 +1,6 @@
 # OrderManager
 
-Single owner of the shared system state (the *worldview*). All state changes go through the `UpdaterRun` goroutine — no other part of the system writes to the worldview directly.
+Single owner of the shared system state (the *worldview*). All state changes go through the `UpdaterRun` goroutine, no other part of the system writes to the worldview directly.
 
 ## What it does
 

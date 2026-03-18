@@ -53,7 +53,7 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 			peer := peerWv.HallRequests[floor][dir]
 
 			// NoCall -> Exist: propagate existence from any peer
-			if local == def.NoCall && (peer == def.Exist || peer == def.Acknowledged) {
+			if local == def.NoCall && (peer == def.Exist) {
 				if validTransition(local, def.Exist) {
 					localWv.HallRequests[floor][dir] = def.Exist
 				}

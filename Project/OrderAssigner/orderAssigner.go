@@ -90,11 +90,7 @@ func (o *OrderAssigner) Run() {
 
 				////fmt.Println("Received new worldview, running cost function...")
 
-				if len(wv.Nodes) == 0 {
-					fmt.Println("OrderAssigner: skipping worldview with no nodes")
-					continue
-				}
-
+				
 				input, err := o.worldviewToORAInput(wv)
 				if err != nil {
 					fmt.Println("Error building costfunction input: ", err)
@@ -102,6 +98,11 @@ func (o *OrderAssigner) Run() {
 				}
 
 				if !checkORAInput(input) {
+					continue
+				}
+				
+				if len(input.States) == 0 {
+					fmt.Println("OrderAssigner: skipping worldview with no nodes")
 					continue
 				}
 
@@ -113,6 +114,8 @@ func (o *OrderAssigner) Run() {
 
 				//fmt.Println("JSON being sent to executable:")
 				//fmt.Println(string(jsonBytes))
+
+				
 
 				costFuncResult, err := o.runORAExecutable(jsonBytes)
 				if err != nil {

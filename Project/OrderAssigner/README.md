@@ -12,8 +12,8 @@ A pre-compiled external binary that runs an optimization algorithm to decide whi
 
 Two binaries are included:
 
-- `hall_request_assigner` — Linux
-- `hall_request_assigner.exe` — Windows
+- `hall_request_assigner`: Linux
+- `hall_request_assigner.exe`: Windows
 
 ### Input format
 

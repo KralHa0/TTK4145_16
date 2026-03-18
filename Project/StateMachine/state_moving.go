@@ -63,7 +63,7 @@ func handleMoving(
 				StopFloorTimer(floorTimerStopCH, floorTimerTimeoutCH)
 				clearOrder(elev.CurrentFloor, elev.Direction, clearOrderCH)
 			} else {
-				//keep moving in current direction
+				//Order is on another floor, keep moving in current direction
 				ResetFloorTimer(floorTimerResetCH, floorTimerTimeoutCH)
 			}
 		}

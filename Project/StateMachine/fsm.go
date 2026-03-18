@@ -1,5 +1,4 @@
-// code for state machine.
-// Daniel writes this part.
+
 package Statemachine
 
 import (
@@ -10,8 +9,7 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-// function is done
-// copilot says its okay
+
 func InitStateMachine(
 	malfunctionStatusCH chan bool,
 	clearOrderCH chan def.FsmClearOrderMessage,
@@ -22,7 +20,6 @@ func InitStateMachine(
 ) {
 	// Initialize elevio/hardware
 	elevatorAddr := fmt.Sprintf("%s:%d", def.Addr, def.Port)
-	//elevio init`s using this function:`: func Init(addr string, numFloors int)
 	elevio.Init(elevatorAddr, def.NumFloors)
 
 	// Turn off all button lights:

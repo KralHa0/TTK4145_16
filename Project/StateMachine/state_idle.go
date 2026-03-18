@@ -42,6 +42,7 @@ func handleIdle(
 		if (*isObstructedFlag == false) && (*isStoppedFlag == false) {
 			//check if there is something to do:
 			if currentDestination.Direction != elevio.MD_Stop {
+				//there is something to do.
 				if elev.CurrentFloor == currentDestination.Floor {
 					//open doors, clear order
 					elev.ElevState = def.DoorOpen
@@ -51,7 +52,7 @@ func handleIdle(
 					elev.Direction = currentDestination.Direction
 					clearOrder(elev.CurrentFloor, elev.Direction, clearOrderCH)
 				} else {
-					//head towards destination:
+					//destination is on another floor, head there.
 					elev.ElevState = def.Moving
 					fmt.Println("ElevState = Moving")
 					elev.Direction = getElevatorDirection(elev.CurrentFloor, currentDestination.Floor)

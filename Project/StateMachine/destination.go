@@ -6,12 +6,11 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-// go-function is done.
-// copilot says its okay
+
 func produceNextElevatorDestination(
 	costFunctionOutputCH <-chan def.AssignedOrders, //receive only.
 	currentElevatorPositionCH <-chan def.OrderMessage, //receive only.
-	latestDestinationCH chan<- def.OrderMessage, //send only. it sends where elevator should go next.
+	latestDestinationCH chan<- def.OrderMessage, //send only.
 ) {
 	var heardFromElevator bool = false
 	var heardFromCostfunction bool = false
@@ -25,13 +24,13 @@ func produceNextElevatorDestination(
 		case elevatorNews := <-currentElevatorPositionCH:
 			elevatorMovement = elevatorNews
 			heardFromElevator = true
-			//the elevator reports to us, sleeps for 5 mS, then checks for our response.
+			//the elevator control-state-machine reports to us, sleeps, then checks for our response.
 		case costFunctionNews := <-costFunctionOutputCH:
 			costfunctionOutput = costFunctionNews
 			heardFromCostfunction = true
 		}
 		//only after hearing from both elevator and costfunction, do we start issuing orders
-		if heardFromElevator && heardFromCostfunction {
+		if heardFromElevator && heardFromCostfunction{
 			if orderCount(costfunctionOutput) == 0 {
 				//no orders to take. Stop elevator. Let it go Idle.
 				newDestination.Floor = elevatorMovement.Floor
@@ -46,8 +45,7 @@ func produceNextElevatorDestination(
 	}
 }
 
-// go-function is done
-// copilot says its okay.
+
 func provideLatestDestination(
 	latestDestinationCH <-chan def.OrderMessage, //recieve only
 	requestLatestDestinationCH <-chan def.OrderMessage, //recieve only
@@ -60,7 +58,6 @@ func provideLatestDestination(
 		//(These events both happen rarely, avoiding full buffers)
 		select {
 		case destinationUpdate := <-latestDestinationCH:
-			//there was an update to our destination
 			latestDestination = destinationUpdate
 			gottenFirstUpdate = true
 		case currentDestination := <-requestLatestDestinationCH:
@@ -75,8 +72,7 @@ func provideLatestDestination(
 	}
 }
 
-// function is done
-// copilot says its okay
+
 func findClosestDestination(
 	elevatorMovement def.OrderMessage,
 	costfunctionOutput def.AssignedOrders,
@@ -89,82 +85,94 @@ func findClosestDestination(
 		elevatorMovement.Direction = elevio.MD_Down
 	}
 
-	//we now walk an entire circle (up and down) the orderfunction, and look for nearest "True"= order.
+	//we now check in a circle on the costfunction`s output`, and look for nearest "True"/order to take.
+	//if we move clockwise or counter-clockwise, depends on if elevator is moving up or down.
 	if elevatorMovement.Direction == elevio.MD_Down {
 		//Look for DOWN orders on a lower floor
-		for i := elevatorMovement.Floor - 1; i >= def.GroundFloor; i-- {
-			if costfunctionOutput[i][def.DirDown] == true {
-				closestDestination.Direction = elevio.MD_Down
-				closestDestination.Floor = i
-				return closestDestination
-			}
-		}
-		//Look for UP orders on a lower floor
-		for i := def.GroundFloor; i < elevatorMovement.Floor; i++ {
-			if costfunctionOutput[i][def.DirUp] == true {
-				closestDestination.Direction = elevio.MD_Up
-				closestDestination.Floor = i
-				return closestDestination
-			}
-		}
-		//If direction = down, and no orders at all below it, look on current floor and above
-		for i := elevatorMovement.Floor; i < def.NumFloors; i++ {
-			if costfunctionOutput[i][def.DirUp] == true {
-				closestDestination.Direction = elevio.MD_Up
-				closestDestination.Floor = i
-				return closestDestination
-			}
+		closestDestination = checkForTrueInInterval(elevatorMovement.Floor - 1, def.GroundFloor, def.DirDown, elevatorMovement) 
+		if(cosestDestination.Direction != elevio.MD_Stop){
+			return closestDestination
 		}
 
-		//If direction = down, and no orders at all below it, or going up, check orders above it going down
-		for i := def.NumFloors - 1; i >= elevatorMovement.Floor; i-- {
-			if costfunctionOutput[i][def.DirDown] == true {
-				closestDestination.Direction = elevio.MD_Down
-				closestDestination.Floor = i
-				return closestDestination
-			}
+		//Look for UP orders on a lower floor
+		closestDestination = checkForTrueInInterval(def.GroundFloor, elevatorMovement.Floor - 1, def.DirUp, elevatorMovement) 
+		if(cosestDestination.Direction != elevio.MD_Stop){
+			return closestDestination
+		}
+
+		//direction = down, and no orders at all below it, look on current floor and above
+		closestDestination = checkForTrueInInterval(elevatorMovement.Floor, def.NumFloors - 1, def.DirUp, elevatorMovement) 
+		if(cosestDestination.Direction != elevio.MD_Stop){
+			return closestDestination
+		}
+
+		//direction = down, and no orders at all below it, check for DOWN orders above it
+		closestDestination = checkForTrueInInterval(def.NumFloors - 1, elevatorMovement.Floor, def.DirDown, elevatorMovement) 
+		if(cosestDestination.Direction != elevio.MD_Stop){
+			return closestDestination
 		}
 	} else {
-		//we now walk an entire circle in the oposite direction (up and down) the orderfunction, and look for nearest "True"= order.
 		//elevator is moving upwards
 		//Look for UP orders on a floor above
-		for i := elevatorMovement.Floor + 1; i < def.NumFloors; i++ {
-			if costfunctionOutput[i][def.DirUp] == true {
-				closestDestination.Direction = elevio.MD_Up
-				closestDestination.Floor = i
-				return closestDestination
-			}
+		closestDestination = checkForTrueInInterval(elevatorMovement.Floor + 1, def.NumFloors - 1, def.DirUp, elevatorMovement) 
+		if(cosestDestination.Direction != elevio.MD_Stop){
+			return closestDestination
 		}
+
 		//Look for DOWN orders on a floor above
-		for i := def.NumFloors - 1; i > elevatorMovement.Floor; i-- {
-			if costfunctionOutput[i][def.DirDown] == true {
-				closestDestination.Direction = elevio.MD_Down
-				closestDestination.Floor = i
-				return closestDestination
-			}
+		closestDestination = checkForTrueInInterval(def.NumFloors - 1, elevatorMovement.Floor + 1, def.DirDown, elevatorMovement) 
+		if(cosestDestination.Direction != elevio.MD_Stop){
+			return closestDestination
 		}
+
 		//There are no orders above the elevator. Now we check on currentfloor and below.
-		for i := elevatorMovement.Floor; i >= def.GroundFloor; i-- {
-			if costfunctionOutput[i][def.DirDown] == true {
-				closestDestination.Direction = elevio.MD_Down
-				closestDestination.Floor = i
-				return closestDestination
-			}
+		closestDestination = checkForTrueInInterval(elevatorMovement.Floor, def.GroundFloor, def.DirDown, elevatorMovement) 
+		if(cosestDestination.Direction != elevio.MD_Stop){
+			return closestDestination
 		}
+
 		//check from ground floor going UP to and including currentfloor
-		for i := def.GroundFloor; i <= elevatorMovement.Floor; i++ {
-			if costfunctionOutput[i][def.DirUp] == true {
-				closestDestination.Direction = elevio.MD_Up
-				closestDestination.Floor = i
-				return closestDestination
-			}
+		closestDestination = checkForTrueInInterval(def.GroundFloor, elevatorMovement.Floor, def.DirUp, elevatorMovement) 
+		if(cosestDestination.Direction != elevio.MD_Stop){
+			return closestDestination
 		}
 	}
 	return closestDestination
 }
 
-// function is done
-// copilot says its okay
+
+
+func checkForTrueInInterval(
+	var startIndex int
+	var finalIndex int
+	var direction def.DirectionUpDown
+	var elevatorMovement def.OrderMessage
+) def.OrderMessage{
+	var closestDestination def.OrderMessage
+	closestDestination.Direction = elevio.MD_Stop
+
+	if(direction == def.DirUp){
+		for i := startIndex; i <= finalIndex; i++ {
+			if costfunctionOutput[i][def.DirUp] == true {
+				closestDestination.Direction = elevio.MD_Up
+				closestDestination.Floor = i
+				return closestDestination
+			}
+		}
+	}else{
+		for i := startIndex; i >= finalIndex; i-- {
+			if costfunctionOutput[i][def.DirDown] == true {
+				closestDestination.Direction = elevio.MD_Down
+				closestDestination.Floor = i
+				return closestDestination
+			}
+		}
+	}
+	//if no "true" is found, then the return has direction = MD_Stop.
+	return closestDestination
+}
+
+
 func orderCount(
 	costfunctionOutput def.AssignedOrders,
 ) int {

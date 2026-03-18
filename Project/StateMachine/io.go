@@ -26,8 +26,7 @@ func SetButtonLamp(button elevio.ButtonType, floor int, value bool) {
 	elevio.SetButtonLamp(button, floor, value)
 }
 
-// function is done
-// copilot says its okay
+
 func pullHardwareNotifyStateMachine(
 	drvButtonsCH chan<- elevio.ButtonEvent, //send-only channels
 	drvFloorsCH chan<- int,
@@ -41,7 +40,7 @@ func pullHardwareNotifyStateMachine(
 	go elevio.PollStopButton(drvStopCH)
 }
 
-// function is done
+
 func SetAllLights(wvCh <-chan def.Worldview) {
 	ID := nw.GetIp()
 	var oldWv def.Worldview
@@ -57,7 +56,7 @@ func SetAllLights(wvCh <-chan def.Worldview) {
 	}
 }
 
-// function is done
+
 func checkAllLights(node def.Node, wv def.Worldview) {
 	for floor := 0; floor < def.NumFloors; floor++ {
 		// cabrequests

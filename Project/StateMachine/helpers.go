@@ -7,8 +7,7 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-// function is done
-// copilot says its okay
+
 func getElevatorDirection(
 	currentFloor int,
 	destinationFloor int,
@@ -24,8 +23,7 @@ func getElevatorDirection(
 	}
 }
 
-// function is done
-// copilot says its okay.
+
 func clearOrder(
 	clearedFloor int,
 	clearedDirection elevio.MotorDirection,
@@ -43,8 +41,7 @@ func clearOrder(
 	clearOrderCH <- clearedMessage
 }
 
-// function is done
-// copilot says its okay.
+
 func giveLocationToDestinationFunction(
 	currentFloor int,
 	currentDirection elevio.MotorDirection,
@@ -58,8 +55,7 @@ func giveLocationToDestinationFunction(
 	currentElevatorPositionCH <- currentElevPosition
 }
 
-// function is done
-// copilot says its okay
+
 func stopOrResumeMoving(
 	isObstructedFlag bool,
 	isStoppedFlag bool,
@@ -73,8 +69,7 @@ func stopOrResumeMoving(
 	}
 }
 
-// function is done
-// copilot says its okay.
+
 func getLatestDestination(
 	currentDestination def.OrderMessage,
 	requestLatestDestinationCH chan def.OrderMessage,

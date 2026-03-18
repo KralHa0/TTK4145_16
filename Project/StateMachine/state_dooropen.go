@@ -53,7 +53,8 @@ func handleDoorOpen(
 			} else if (elev.Direction == elevio.MD_Up) && (buttonEvent.Button == elevio.BT_HallDown) {
 				buttonEventCH <- buttonEvent
 			} else if buttonEvent.Button == elevio.BT_Cab {
-				//cab call to current floor. Allow them time to step out:
+				//cab call to current floor. 
+				// Allow them time to step out:
 				ResetDoorTimer(doorTimerResetCH)
 			} else {
 				//Hall-call in elevator's direction

@@ -6,7 +6,7 @@ import (
 	def "github.com/KralHa0/TTK4145_16/Project/Definitions"
 )
 
-// function is done.
+
 // Doortimer is to know when to close the door, after it has been opened.
 func DoorTimer(doorTimerResetCH chan bool, doorTimerTimeoutCH chan bool) {
 	timer := time.NewTimer(def.FloorTimerTimeout)
@@ -36,7 +36,7 @@ func signalDoortimeout(doorTimerTimeoutCH chan bool) {
 	doorTimerTimeoutCH <- true
 }
 
-// function is done.
+
 // Watchdogtimer is to let the other elevators know, if the state-machine code is stuck/deadlock on this elevator.
 func WatchdogTimer(watchdogResetCH chan bool, watchdogTimeoutCH chan bool) {
 	timer := time.NewTimer(def.WatchdogTimeout)
@@ -68,7 +68,7 @@ func signalWatchdogTimeout(watchdogTimeoutCH chan bool) {
 	watchdogTimeoutCH <- true
 }
 
-// function is done
+
 // Floortimer is to make sure the time moving between floors is reasonable.
 func FloorTimer(
 	floorTimerResetCH chan bool,

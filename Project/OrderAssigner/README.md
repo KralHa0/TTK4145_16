@@ -36,7 +36,7 @@ Two binaries are included:
 }
 ```
 
-- `hallRequests`: `NumFloors × 2` — index `[floor][0]` = up, `[floor][1]` = down
+- `hallRequests`: `NumFloors × 2`: index `[floor][0]` = up, `[floor][1]` = down
 - `states`: one entry per active elevator; only nodes considered available are included
 
 ### Output format

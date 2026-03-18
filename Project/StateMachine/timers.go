@@ -9,7 +9,7 @@ import (
 
 // Doortimer is to know when to close the door, after it has been opened.
 func DoorTimer(doorTimerResetCH chan bool, doorTimerTimeoutCH chan bool) {
-	timer := time.NewTimer(def.FloorTimerTimeout)
+	timer := time.NewTimer(def.DoorOpenTimeout)
 	timer.Stop()
 	for {
 		select {
@@ -98,7 +98,6 @@ func FloorTimer(
 				default:
 				}
 			}
-			timer.Stop()
 		}
 	}
 }

@@ -35,6 +35,7 @@ func clearOrder(
 	clearedOrderUpDown, complete := def.DirFromMotor(clearedDirection)
 	if complete == false {
 		fmt.Println("[ERROR] Direction into dirFromMotor is MD_stop")
+		return
 	}
 	clearedMessage.Dir = clearedOrderUpDown
 	//send it to order manager

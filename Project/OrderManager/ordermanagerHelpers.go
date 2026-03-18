@@ -176,15 +176,20 @@ func applyNewOrder(msg elevio.ButtonEvent, aliveList def.AliveList) bool {
 			}
 		}
 	} else {
-		// BT_HallUp=0 maps to dir index 0, BT_HallDown=1 maps to dir index 1
-		dir := int(msg.Button)
+		var dir def.DirectionUpDown
+		switch msg.Button {
+		case elevio.BT_HallUp:
+			dir = def.DirUp
+		case elevio.BT_HallDown:
+			dir = def.DirDown
+		}
 		cur := localWv.HallRequests[msg.Floor][dir]
 		if validTransition(cur, def.Exist) {
 			localWv.HallRequests[msg.Floor][dir] = def.Exist
 		}
 		// Advance to Acknowledged immediately if all alive peers already have Exist
 		if localWv.HallRequests[msg.Floor][dir] == def.Exist {
-			if allAliveHallAtOrAbove(msg.Floor, dir, def.Exist, aliveList) {
+			if allAliveHallAtOrAbove(msg.Floor, int(dir), def.Exist, aliveList) {
 				if validTransition(localWv.HallRequests[msg.Floor][dir], def.Acknowledged) {
 					localWv.HallRequests[msg.Floor][dir] = def.Acknowledged
 					reachedAck = true

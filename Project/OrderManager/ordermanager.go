@@ -114,15 +114,18 @@ func UpdaterRun(
 		// New button press from FSM
 		case newOrder := <-newOrderCh:
 			localWvMu.Lock()
-			applyNewOrder(newOrder)
+			reachedAck := applyNewOrder(newOrder, getAliveList())
 			sendToOrderHandler(orderHandlerWvCh)
+			if reachedAck {
+				sendToFsm(omToFsmWvCh)
+			}
 			localWvMu.Unlock()
 			PrintWv(GetLocalWv())
 
 		// Order completion from FSM
 		case orderMsg := <-orderCompleteCh:
 			localWvMu.Lock()
-			applyCompletion(orderMsg.Floor, orderMsg.Dir)
+			applyCompletion(orderMsg.Floor, orderMsg.Dir, getAliveList())
 			applyHallConsensus(getAliveList())
 			sendToOrderHandler(orderHandlerWvCh)
 			sendToFsm(omToFsmWvCh)

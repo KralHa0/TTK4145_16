@@ -95,12 +95,70 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 		}
 	}
 
+	// Cab: Exist→Acknowledged and Complete→NoCall consensus
+	for f := 0; f < def.NumFloors; f++ {
+		if localNode().CabRequests[f] == def.Exist {
+			if allAliveCabAtOrAbove(f, def.Exist, aliveList) {
+				if validTransition(localNode().CabRequests[f], def.Acknowledged) {
+					localNode().CabRequests[f] = def.Acknowledged
+					reachedAck = true
+				}
+			}
+		}
+		if localNode().CabRequests[f] == def.Complete {
+			if allAliveCabAtOrAbove(f, def.Complete, aliveList) {
+				if validTransition(localNode().CabRequests[f], def.NoCall) {
+					localNode().CabRequests[f] = def.NoCall
+					cabCallKnown[f] = true
+				}
+			}
+		}
+	}
+
 	return reachedAck
 }
 
 // --------------------------------------------------
-// Alive consensus helper
+// Alive consensus helpers
 // --------------------------------------------------
+
+// allAliveCabAtOrAbove checks that every alive peer's stored worldview has the
+// local node's cab request for the given floor at or above threshold.
+func allAliveCabAtOrAbove(floor int, threshold def.OrderState, aliveList def.AliveList) bool {
+	if len(aliveList.Peers) == 0 {
+		return false
+	}
+	localID := localNode().ID
+	for peerID, alive := range aliveList.Peers {
+		if !alive {
+			continue
+		}
+		if peerID == localID {
+			if localNode().CabRequests[floor] < threshold {
+				return false
+			}
+			continue
+		}
+		peerWv, known := peerWorldviews[peerID]
+		if !known {
+			return false
+		}
+		found := false
+		for _, node := range peerWv.Nodes {
+			if node.ID == localID {
+				if node.CabRequests[floor] < threshold {
+					return false
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
 
 func allAliveHallAtOrAbove(
 	floor int,
@@ -155,6 +213,25 @@ func applyHallConsensus(aliveList def.AliveList) bool {
 					if validTransition(localWv.HallRequests[floor][dir], def.NoCall) {
 						localWv.HallRequests[floor][dir] = def.NoCall
 					}
+				}
+			}
+		}
+	}
+	// Cab: Exist→Acknowledged and Complete→NoCall consensus
+	for f := 0; f < def.NumFloors; f++ {
+		if localNode().CabRequests[f] == def.Exist {
+			if allAliveCabAtOrAbove(f, def.Exist, aliveList) {
+				if validTransition(localNode().CabRequests[f], def.Acknowledged) {
+					localNode().CabRequests[f] = def.Acknowledged
+					reachedAck = true
+				}
+			}
+		}
+		if localNode().CabRequests[f] == def.Complete {
+			if allAliveCabAtOrAbove(f, def.Complete, aliveList) {
+				if validTransition(localNode().CabRequests[f], def.NoCall) {
+					localNode().CabRequests[f] = def.NoCall
+					cabCallKnown[f] = true
 				}
 			}
 		}

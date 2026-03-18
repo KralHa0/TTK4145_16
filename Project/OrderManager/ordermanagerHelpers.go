@@ -158,12 +158,22 @@ func deepCopyWorldview(src def.Worldview) def.Worldview {
 // New order from FSM
 // --------------------------------------------------
 
-func applyNewOrder(msg elevio.ButtonEvent) {
+func applyNewOrder(msg elevio.ButtonEvent, aliveList def.AliveList) bool {
+	reachedAck := false
 	if msg.Button == elevio.BT_Cab {
-		// Cab calls are local-only — set Acknowledged directly, no consensus needed
-		if localNode().CabRequests[msg.Floor] == def.NoCall {
-			localNode().CabRequests[msg.Floor] = def.Acknowledged
+		// Cab calls: set Exist, then advance to Acknowledged once all alive peers confirm
+		cur := localNode().CabRequests[msg.Floor]
+		if validTransition(cur, def.Exist) {
+			localNode().CabRequests[msg.Floor] = def.Exist
 			cabCallKnown[msg.Floor] = true
+		}
+		if localNode().CabRequests[msg.Floor] == def.Exist {
+			if allAliveCabAtOrAbove(msg.Floor, def.Exist, aliveList) {
+				if validTransition(localNode().CabRequests[msg.Floor], def.Acknowledged) {
+					localNode().CabRequests[msg.Floor] = def.Acknowledged
+					reachedAck = true
+				}
+			}
 		}
 	} else {
 		// BT_HallUp=0 maps to dir index 0, BT_HallDown=1 maps to dir index 1
@@ -172,22 +182,35 @@ func applyNewOrder(msg elevio.ButtonEvent) {
 		if validTransition(cur, def.Exist) {
 			localWv.HallRequests[msg.Floor][dir] = def.Exist
 		}
+		// Advance to Acknowledged immediately if all alive peers already have Exist
+		if localWv.HallRequests[msg.Floor][dir] == def.Exist {
+			if allAliveHallAtOrAbove(msg.Floor, dir, def.Exist, aliveList) {
+				if validTransition(localWv.HallRequests[msg.Floor][dir], def.Acknowledged) {
+					localWv.HallRequests[msg.Floor][dir] = def.Acknowledged
+					reachedAck = true
+				}
+			}
+		}
 	}
+	return reachedAck
 }
 
 // --------------------------------------------------
 // Completion from FSM
 // --------------------------------------------------
 
-func applyCompletion(floor int, dir def.DirectionUpDown) {
+func applyCompletion(floor int, dir def.DirectionUpDown, aliveList def.AliveList) {
+	// Hall: FSM completion is authoritative — always advance to Complete.
+	// Consensus (Complete→NoCall) is handled separately in applyHallConsensus.
 	cur := localWv.HallRequests[floor][dir]
 	if validTransition(cur, def.Complete) {
 		localWv.HallRequests[floor][dir] = def.Complete
 	}
 
-	// Cab requests are local-only — clear immediately, no peer consensus needed
-	if localNode().CabRequests[floor] != def.NoCall {
-		localNode().CabRequests[floor] = def.NoCall
+	// Cab: advance to Complete; NoCall via peer consensus in applyHallConsensus.
+	cabCur := localNode().CabRequests[floor]
+	if validTransition(cabCur, def.Complete) {
+		localNode().CabRequests[floor] = def.Complete
 		cabCallKnown[floor] = true
 	}
 }

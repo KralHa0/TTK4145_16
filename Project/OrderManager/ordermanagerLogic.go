@@ -25,9 +25,14 @@ func mergePeerWorldview(peerWv def.Worldview, aliveList def.AliveList) bool {
 			// (cabCallKnown is false only on fresh startup). This prevents
 			// stale peer worldviews from re-activating calls we already served.
 			for f := 0; f < def.NumFloors; f++ {
-				if !cabCallKnown[f] && localNode().CabRequests[f] == def.NoCall && peerNode.CabRequests[f] == def.Acknowledged {
-					localNode().CabRequests[f] = def.Acknowledged
-					cabCallKnown[f] = true
+				if !cabCallKnown[f] && localNode().CabRequests[f] == def.NoCall {
+					if peerNode.CabRequests[f] == def.Acknowledged {
+						localNode().CabRequests[f] = def.Acknowledged
+						cabCallKnown[f] = true
+					} else if peerNode.CabRequests[f] == def.Exist {
+						localNode().CabRequests[f] = def.Exist
+						cabCallKnown[f] = true
+					}
 				}
 			}
 			continue
